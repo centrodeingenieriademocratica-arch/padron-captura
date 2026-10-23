@@ -15,10 +15,12 @@
    ubicar direcciones en el mapa (geocodificar, gratis, diario); ubicación escrita a mano o por dirección si se captura fuera del domicilio.
    v13 (NO PROBADO): al crear un apoyo se pregunta si es periódico (columna periodicidad); en nuevas entregas lo fundamental queda fijo.
    v12 (NO PROBADO): modo evento: el evento guarda lugar, ubicación y localidad una vez; Apoyos se ubica en el lugar de entrega.
+   v15 (NO PROBADO): un solo servidor para todos los ayuntamientos (código m en el enlace); "Nuevo ayuntamiento" crea su hoja,
+   carpeta, enlace y clave de administrador; el administrador da claves e importa Excel desde la app.
    v14 (NO PROBADO): importar Excel desde la app (acción importar): se guarda tal cual en una hoja Importar y pasa al padrón.
    v7 (NO PROBADO): los apoyos también se dan de alta desde la app (funciona sin señal); llegan a Eventos. */
 const COLS={
- Claves:["id","nombre","municipio","hash","activa"],
+ Claves:["id","nombre","municipio","hash","activa","rol"],
  Catalogos:["municipio","tipo","valor"],
  Capturas:["id","ts","capturista","municipio","estado","curp","folio","nombre","localidad","tel","direccion","lat","lng","grupos","programa","eje","area","monto","fecha","fotoBen","fotoApoyo","fotoIne","notas","motivoSinGps","nacimiento","sexo","evento","tipo","canal","colonia","cp","correo","fotoIneReverso","origen_ubicacion"],
  Padron:["clave","curp","folio","nombre","municipio","localidad","tel","direccion","lat","lng","grupos","primera_captura","estado","nacimiento","sexo","colonia","cp","correo","origen_ubicacion","precision"],
@@ -31,27 +33,26 @@ const MOTIVOS=["Captura fuera del domicilio (oficina, evento)","GPS sin señal o
 const SEXOS=["Mujer","Hombre"];
 const CURP=/^[A-Z]{4}\d{6}[HM][A-Z]{2}[B-DF-HJ-NP-TV-Z]{3}[A-Z\d]\d$/;
 const yr_=x=>x instanceof Date?String(x.getFullYear()):String(x).slice(0,4);
-const sh_=n=>SpreadsheetApp.getActive().getSheetByName(n);
-const P_=()=>PropertiesService.getScriptProperties();
+/* Un solo servidor para todos los ayuntamientos. Cada uno tiene su propia hoja en Drive (SS), elegida por el código m
+   del enlace de la app; sus propiedades (SAL, CARPETA, MUN…) llevan el id de su hoja como prefijo. Sin SS = la hoja central. */
+let SS=null;
+const AC_=()=>SS||SpreadsheetApp.getActive();
+const sh_=n=>AC_().getSheetByName(n);
+const SP_=()=>PropertiesService.getScriptProperties();
+const P_=()=>{const x=SS?SS.getId()+":":"",p=SP_();return{getProperty:k=>p.getProperty(x+k),setProperty:(k,v)=>p.setProperty(x+k,v)}};
+const PAGINA="https://centrodeingenieriademocratica-arch.github.io/padron-captura/";
 
 function onOpen(){SpreadsheetApp.getUi().createMenu("Padrón")
- .addItem("1. Instalar (una sola vez)","instalar").addItem("2. Nueva clave de capturista","nuevaClave").addItem("3. Importar histórico (hoja Importar)","importar")
- .addItem("4. Claves en lote (hoja NuevasClaves)","clavesLote").addItem("5. Actualizar Avance","avance").addItem("6. Ubicar direcciones en el mapa","ubicar").addToUi()}
+ .addItem("1. Instalar (una sola vez)","instalar").addItem("2. Nuevo ayuntamiento","nuevoAyto")
+ .addItem("3. Nueva clave de administrador (fila elegida en Ayuntamientos)","claveAdmin")
+ .addItem("4. Actualizar Avance de todos","avanceTodos").addItem("5. Ubicar direcciones en el mapa (todos)","ubicarTodos").addToUi()}
 
-/* ---- Claves en lote: hoja NuevasClaves con columnas nombre y municipio (fila 1 = encabezados).
-   Escribe la clave en la columna C para imprimirla y entregarla; bórrela de ahí después de entregar. ---- */
-function clavesLote(){const u=SpreadsheetApp.getUi();let s=sh_("NuevasClaves");
- if(!s){s=SpreadsheetApp.getActive().insertSheet("NuevasClaves");s.appendRow(["nombre","municipio (vacío = el del ayuntamiento)","clave (borrar al entregar)"]);s.setFrozenRows(1);return u.alert("Se creó la hoja NuevasClaves. Escriba un capturista por fila y vuelva a correr este menú.")}
- if(!sh_("Claves"))return u.alert("Primero corra 1. Instalar.");
- const v=s.getDataRange().getValues();let n=0;
- for(let i=1;i<v.length;i++){const nom=String(v[i][0]).trim(),mun=String(v[i][1]).trim()||MUN_();if(!nom||!mun||String(v[i][2]||"")!=="")continue;
-  s.getRange(i+1,3).setValue(clave_(nom,mun));n++}
- u.alert(n?"Se crearon "+n+" claves en la columna C. Imprímalas, entréguelas en persona y después borre esa columna. Las claves no se pueden volver a ver.":"No hay filas nuevas (con nombre, municipio y sin clave).")}
-function clave_(nom,mun){const al="ABCDEFGHJKMNPQRSTUVWXYZ23456789";let k="";for(let i=0;i<10;i++)k+=al[Math.floor(Math.random()*al.length)];
- sh_("Claves").appendRow([Utilities.getUuid().slice(0,8),nom,mun,hash_(k),"SI"]);return k}
+/* Clave de 10 caracteres; en la hoja solo queda su huella (hash). rol: admin (da claves e importa Excel) o capturista. */
+function clave_(nom,mun,rol){const al="ABCDEFGHJKMNPQRSTUVWXYZ23456789";let k="";for(let i=0;i<10;i++)k+=al[Math.floor(Math.random()*al.length)];
+ sh_("Claves").appendRow([Utilities.getUuid().slice(0,8),nom,mun,hash_(k),"SI",rol==="admin"?"admin":"capturista"]);return k}
 
 /* ---- Avance: resumen para el informe (por municipio, por capturista y por día). Se recalcula cada vez que se corre. ---- */
-function avance(){const A=SpreadsheetApp.getActive(),rows=n=>{const s=sh_(n);return s&&s.getLastRow()>1?s.getRange(2,1,s.getLastRow()-1,s.getLastColumn()).getValues():[]};
+function avance(){const A=AC_(),rows=n=>{const s=sh_(n);return s&&s.getLastRow()>1?s.getRange(2,1,s.getLastRow()-1,s.getLastColumn()).getValues():[]};
  const pd=rows("Padron"),ap=rows("Apoyos"),sc=rows("Capturas"),cl=rows("Claves"),nomC={};cl.forEach(c=>nomC[c[0]]=c[1]+" ("+c[2]+")");
  const M={},C={},D={},dia=x=>x instanceof Date?Utilities.formatDate(x,"America/Mexico_City","yyyy-MM-dd"):String(x).slice(0,10);
  const m_=k=>M[k]=M[k]||{p:0,inc:0,a:0,mo:0,rev:0,mult:0},yr=String(new Date().getFullYear()),AR={};
@@ -109,24 +110,8 @@ const CAMPOS_=[
 function mapa_(hd){const h=hd.map(norm_),col={},usada={},rc=h.indexOf("resultado"),kc=h.indexOf("clavepadron");
  CAMPOS_.forEach(([c,f])=>{col[c]=[];h.forEach((x,i)=>{if(x&&!usada[i]&&i!==rc&&i!==kc&&f(x)){col[c].push(i);usada[i]=1}})});
  return{col,usada,rc,kc,nombre:!!(col.nombre.length||col.paterno.length||col.apellidos.length),programa:!!(col.programa.length||col.tipo.length),area:!!col.area.length}}
-/* Menú 3: la hoja que empieza con "Importar". */
-function importar(){const u=SpreadsheetApp.getUi(),act=SpreadsheetApp.getActiveSheet();
- const im=/^importar/i.test(act.getName())?act:sh_("Importar");
- if(!im||im.getLastRow()<2)return u.alert("Lo más fácil: en la app, menú Importar Excel. Desde aquí: Archivo → Importar → Subir → Insertar hojas nuevas; cambie el nombre de esa hoja para que empiece con Importar (ej. Importar DIF 2024), ábrala y corra este menú.");
- let mun=MUN_();if(!mun){const m=u.prompt("Municipio de esta lista");if(m.getSelectedButton()!=u.Button.OK)return;mun=m.getResponseText().trim();if(!mun)return}
- const hd=im.getRange(1,1,1,im.getLastColumn()).getValues()[0].map(String),m=mapa_(hd);
- if(!m.nombre)return u.alert("No encontré la columna del nombre. Encabezados de esta hoja: "+hd.join(", ")+".\n\nCambie el encabezado de la columna del nombre a Nombre y vuelva a correr.");
- /* Si la lista no trae programa o área en columnas, toda la lista es de un mismo programa: se pregunta una vez. */
- let prL="",arL="";
- if(!m.programa){const p=u.prompt("Esta lista no tiene columna de programa","Si toda la lista es de un mismo programa o apoyo, escriba su nombre (ej. Despensas DIF 2024). Si no, deje vacío.",u.ButtonSet.OK_CANCEL);if(p.getSelectedButton()!=u.Button.OK)return;prL=p.getResponseText().trim()}
- if((prL||m.programa)&&!m.area){const p=u.prompt("Área responsable","¿Qué área entregó estos apoyos? (ej. DIF municipal). Puede dejarlo vacío.",u.ButtonSet.OK_CANCEL);if(p.getSelectedButton()!=u.Button.OK)return;arL=p.getResponseText().trim()}
- const r=imp_(im,mun,prL,arL);
- u.alert("Filas procesadas: "+r.hechas+". Personas nuevas: "+r.nuevas+". Apoyos: "+r.apoyos+"."+
-  "\n\nColumnas usadas: "+r.usadas.join("; ")+(r.sinUsar.length?"\nSe conservan en esta hoja sin usarse: "+r.sinUsar.join(", "):"")+
-  (r.falta?"\n\nFaltan filas: vuelva a correr Importar histórico para seguir.":"\n\nTerminado. No borre esta hoja: es el dato original. Para ubicar las direcciones en el mapa use Padrón → 6."))}
-
 /* Pasa al padrón las filas de la hoja im que aún no tienen resultado. prL/arL: programa y área de toda la lista si no vienen en columnas. */
-function imp_(im,mun,prL,arL){const A=SpreadsheetApp.getActive();
+function imp_(im,mun,prL,arL){const A=AC_();
  Object.keys(COLS).forEach(n=>{if(!sh_(n))A.insertSheet(n).appendRow(COLS[n])});cab_("Padron");cab_("Apoyos");
  const v=im.getDataRange().getValues(),hd=v[0].map(String),m=mapa_(hd),col=m.col,usada=m.usada;let rc=m.rc,kc=m.kc;
  if(kc<0){kc=hd.length;im.getRange(1,kc+1).setValue("clave_padron")}
@@ -168,7 +153,7 @@ function imp_(im,mun,prL,arL){const A=SpreadsheetApp.getActive();
    "Importar <archivo>" (dato original, todas las columnas) y se pasa al padrón. Sin filas = solo seguir procesando. */
 function impWeb_(q,d){const lote=String(d.lote||"").replace(/[^A-Z0-9]/gi,"").slice(0,8),nom=String(d.nombre||"Excel").replace(/[\[\]*?:\/\\']/g," ").trim().slice(0,60);
  if(!lote)return{ok:false,error:"datos"};
- const A=SpreadsheetApp.getActive(),nh="Importar "+nom+" · "+lote,f=Array.isArray(d.filas)?d.filas.slice(0,1000):[];
+ const A=AC_(),nh="Importar "+nom+" · "+lote,f=Array.isArray(d.filas)?d.filas.slice(0,1000):[];
  let im=A.getSheetByName(nh);
  if(!im){if(!f.length)return{ok:false,error:"datos"};
   const m=mapa_(f[0].map(x=>String(x??"")));if(!m.nombre)return{ok:false,error:"sinnombre",encabezados:f[0].map(String)};
@@ -184,12 +169,12 @@ function impWeb_(q,d){const lote=String(d.lote||"").replace(/[^A-Z0-9]/gi,"").sl
 /* ---- Ubicar en el mapa (geocodificar) las personas sin coordenadas, a partir de su dirección. Gratis, con el servicio
    Maps de Apps Script (tiene límite diario; lo que falte se sigue al día siguiente: corre solo cada madrugada). ---- */
 const enMx_=(a,o)=>isFinite(a)&&isFinite(o)&&a>=14&&a<=33&&o>=-118.5&&o<=-86;
-function geocodificar(){const pd=sh_("Padron");if(!pd||pd.getLastRow()<2)return{ok:0,no:0,falta:0};cab_("Padron");
- const n=pd.getLastRow()-1,v=pd.getRange(2,1,n,20).getValues(),t0=Date.now(),G=Maps.newGeocoder().setRegion("mx").setLanguage("es");
+function geocodificar(lim){lim=lim||Date.now()+270000;const pd=sh_("Padron");if(!pd||pd.getLastRow()<2)return{ok:0,no:0,falta:0};cab_("Padron");
+ const n=pd.getLastRow()-1,v=pd.getRange(2,1,n,20).getValues(),G=Maps.newGeocoder().setRegion("mx").setLanguage("es");
  const est=P_().getProperty("ESTADO")||"Puebla";let ok=0,no=0,falta=0,alto=false;
  for(let i=0;i<n;i++){const r=v[i];if(r[8]!==""&&r[9]!=="")continue;const o=String(r[18]);if(o==="No encontrada")continue;
   if(!String(r[7]).trim()&&!String(r[15]).trim()&&!String(r[5]).trim())continue;
-  if(alto||Date.now()-t0>270000){falta++;continue}
+  if(alto||Date.now()>lim){falta++;continue}
   const m=String(r[4]).replace(/^(h\.?\s*)?ayuntamiento\s+(municipal\s+)?(constitucional\s+)?de\s+/i,"");
   const q=[r[7],r[15],r[16]?"C.P. "+r[16]:"",r[5],m,est,"México"].map(x=>String(x).trim()).filter(Boolean).join(", ");
   let x;try{x=G.geocode(q)}catch(e){alto=true;falta++;continue}
@@ -199,57 +184,88 @@ function geocodificar(){const pd=sh_("Padron");if(!pd||pd.getLastRow()<2)return{
   if(x.status==="ZERO_RESULTS"||x.status==="OK"){pd.getRange(i+2,19).setValue("No encontrada");no++}else{alto=true;falta++}
   Utilities.sleep(150)}
  return{ok,no,falta}}
-function ubicar(){const r=geocodificar();SpreadsheetApp.getUi().alert("Ubicadas: "+r.ok+". No encontradas: "+r.no+" (corrija la dirección en Padron y borre \"No encontrada\" en origen_ubicacion para reintentar). Pendientes: "+r.falta+(r.falta?" (se siguen solas cada madrugada o vuelva a correr este menú).":"."))}
-
-/* Una hoja por ayuntamiento: se instala una vez en cada copia de la plantilla. Si detecta que es una copia nueva,
-   crea claves y carpeta de fotos propias, para que nada se comparta con la plantilla ni con otros ayuntamientos. */
+/* ---- Ayuntamientos ----
+   Hoja central (esta): Instalar una vez y publicar como aplicación web. Después, "Nuevo ayuntamiento" crea solo su hoja
+   en la misma carpeta de Drive, su carpeta privada de fotos, su primera clave (administrador) y su enlace de la app.
+   Cada ayuntamiento ve solo su nombre y sus datos; el administrador de cada uno da las claves a sus capturistas desde la app. */
 const MUN_=()=>P_().getProperty("MUN")||"";
-// Carpeta donde está la hoja; si no se puede leer, la raíz de Drive.
+// Carpeta donde está la hoja central; si no se puede leer, la raíz de Drive.
 function carpetaHoja_(){try{var it=DriveApp.getFileById(SpreadsheetApp.getActive().getId()).getParents();if(it.hasNext())return it.next()}catch(e){}return DriveApp.getRootFolder()}
+const AYTOS=["municipio","hoja","enlace de la app","codigo","creado"];
+function aytos_(){const A=SpreadsheetApp.getActive();let s=A.getSheetByName("Ayuntamientos");if(!s){s=A.insertSheet("Ayuntamientos");s.appendRow(AYTOS);s.setFrozenRows(1)}return s}
+/* Llama f con SS = la hoja de cada ayuntamiento registrado. */
+function cadaAyto_(f){const v=aytos_().getDataRange().getValues();for(let i=1;i<v.length;i++){const id=SP_().getProperty("T:"+v[i][3]);if(!id)continue;
+ try{SS=SpreadsheetApp.openById(id);f(v[i][0])}catch(e){console.log("Ayuntamiento "+v[i][0]+": "+e)}finally{SS=null}}}
 
-function instalar(){const u=SpreadsheetApp.getUi(),id=SpreadsheetApp.getActive().getId(),h=P_().getProperty("HOJA"),copia=!!h&&h!==id;
- if(copia||!MUN_()){const r=u.prompt("Nombre del ayuntamiento","Así lo verán sus capturistas. Ej.: Ayuntamiento de San Andrés Cholula",u.ButtonSet.OK_CANCEL);
-  if(r.getSelectedButton()!=u.Button.OK||!r.getResponseText().trim())return;P_().setProperty("MUN",r.getResponseText().trim())}
- if(copia||!P_().getProperty("SAL"))P_().setProperty("SAL",Utilities.getUuid());
- if(copia||!P_().getProperty("CARPETA"))P_().setProperty("CARPETA",carpetaHoja_().createFolder("Padrón fotos · "+MUN_()+" (privada)").getId());
- P_().setProperty("HOJA",id);
- /* Avance se recalcula solo cada madrugada. */
- ScriptApp.getProjectTriggers().filter(t=>t.getHandlerFunction()==="avance").forEach(t=>ScriptApp.deleteTrigger(t));
- ScriptApp.getProjectTriggers().filter(t=>t.getHandlerFunction()==="geocodificar").forEach(t=>ScriptApp.deleteTrigger(t));
- ScriptApp.newTrigger("avance").timeBased().everyDays(1).atHour(5).create();
- ScriptApp.newTrigger("geocodificar").timeBased().everyDays(1).atHour(3).create();
- Object.keys(COLS).forEach(n=>{let s=sh_(n)||SpreadsheetApp.getActive().insertSheet(n);
-  if(s.getLastRow()==0){s.appendRow(COLS[n]);s.setFrozenRows(1)}});
- const c=sh_("Catalogos");if(c.getLastRow()==1)c.getRange(2,1,2,3).setValues([["*","grupo","Adulto mayor"],["*","grupo","Persona con discapacidad"]]);
- /* Aviso al editar a mano el historial y las claves (no bloquea, solo advierte). */
- ["Capturas","Claves"].forEach(n=>{const s=sh_(n);if(!s.getProtections(SpreadsheetApp.ProtectionType.SHEET).length)s.protect().setDescription("Historial: no editar").setWarningOnly(true)});
- u.alert("Listo para "+MUN_()+". En Catalogos escriba localidades, grupos y el aviso de privacidad (tipo aviso). Los apoyos se dan de alta desde la app o en Eventos. Siga con Implementar → Nueva implementación.")}
+function instalar(){const u=SpreadsheetApp.getUi();aytos_();
+ /* Cada madrugada: Avance y ubicar direcciones de todos los ayuntamientos. */
+ ScriptApp.getProjectTriggers().filter(t=>["avance","geocodificar","avanceTodos","geocodificarTodos"].indexOf(t.getHandlerFunction())>=0).forEach(t=>ScriptApp.deleteTrigger(t));
+ ScriptApp.newTrigger("avanceTodos").timeBased().everyDays(1).atHour(5).create();
+ ScriptApp.newTrigger("geocodificarTodos").timeBased().everyDays(1).atHour(3).create();
+ u.alert("Instalado. Falta un solo paso, una sola vez: en Extensiones → Apps Script, Implementar → Nueva implementación → Aplicación web, con Ejecutar como: Yo y Quién tiene acceso: Cualquier persona. Después use Padrón → 2. Nuevo ayuntamiento para cada ayuntamiento.")}
 
+function nuevoAyto(){const u=SpreadsheetApp.getUi(),url=ScriptApp.getService().getUrl();
+ if(!url||!/\/exec$/.test(url))return u.alert("Primero publique: en Extensiones → Apps Script, Implementar → Nueva implementación → Aplicación web (Ejecutar como: Yo; acceso: Cualquier persona). Después vuelva a este menú.");
+ const r=u.prompt("Nuevo ayuntamiento","Nombre como lo verán sus capturistas. Ej.: Ayuntamiento de San Andrés Cholula",u.ButtonSet.OK_CANCEL);
+ if(r.getSelectedButton()!=u.Button.OK||!r.getResponseText().trim())return;
+ const mun=r.getResponseText().trim().slice(0,100),ya=aytos_().getDataRange().getValues().slice(1).some(x=>norm_(x[0])===norm_(mun));
+ if(ya&&u.alert("Ya existe "+mun+". ¿Crear otro?",u.ButtonSet.YES_NO)!=u.Button.YES)return;
+ const k=altaAyto_(mun,url);
+ u.alert("Listo: "+mun+"\n\nEnlace de la app (para todos sus capturistas):\n"+k.enlace+"\n\nClave del administrador del ayuntamiento: "+k.clave+"\n\nEntréguela en persona; no se vuelve a mostrar. Con ella, en la app, da las claves a sus capturistas e importa sus listas de Excel. El enlace queda en la hoja Ayuntamientos.")}
+/* Crea la hoja del ayuntamiento y la deja lista. Devuelve el enlace de la app y la clave de su administrador. */
+function altaAyto_(mun,url){const tok=Utilities.getUuid().replace(/-/g,"").slice(0,12).toUpperCase(),dir=carpetaHoja_();
+ const nueva=SpreadsheetApp.create("Padrón de beneficiarios · "+mun.replace(/^(h\.?\s*)?ayuntamiento\s+(municipal\s+)?(constitucional\s+)?de\s+/i,""));
+ try{DriveApp.getFileById(nueva.getId()).moveTo(dir)}catch(e){}
+ SS=nueva;
+ try{P_().setProperty("MUN",mun);P_().setProperty("SAL",Utilities.getUuid());
+  P_().setProperty("CARPETA",dir.createFolder("Padrón fotos · "+mun+" (privada)").getId());
+  const def=nueva.getSheets()[0];
+  Object.keys(COLS).forEach(n=>{const s=nueva.insertSheet(n);s.appendRow(COLS[n]);s.setFrozenRows(1)});
+  try{nueva.deleteSheet(def)}catch(e){}
+  sh_("Catalogos").getRange(2,1,2,3).setValues([["*","grupo","Adulto mayor"],["*","grupo","Persona con discapacidad"]]);
+  /* Aviso al editar a mano el historial y las claves (no bloquea, solo advierte). */
+  ["Capturas","Claves"].forEach(n=>sh_(n).protect().setDescription("Historial: no editar").setWarningOnly(true));
+  const clave=clave_("Administrador",mun,"admin"),enlace=PAGINA+"?srv="+encodeURIComponent(url)+"&m="+tok;
+  SP_().setProperty("T:"+tok,nueva.getId());
+  SS=null;aytos_().appendRow([mun,nueva.getUrl(),enlace,tok,new Date()]);
+  return{clave,enlace}}
+ finally{SS=null}}
+/* Clave nueva de administrador para el ayuntamiento de la fila elegida en la hoja Ayuntamientos (si se perdió la anterior). */
+function claveAdmin(){const u=SpreadsheetApp.getUi(),s=SpreadsheetApp.getActiveSheet();
+ if(s.getName()!=="Ayuntamientos"||s.getActiveCell().getRow()<2)return u.alert("Abra la hoja Ayuntamientos, haga clic en la fila del ayuntamiento y vuelva a este menú.");
+ const f=s.getRange(s.getActiveCell().getRow(),1,1,4).getValues()[0],id=SP_().getProperty("T:"+f[3]);if(!id)return u.alert("Esa fila no es un ayuntamiento registrado.");
+ SS=SpreadsheetApp.openById(id);let k;try{k=clave_("Administrador",MUN_(),"admin")}finally{SS=null}
+ u.alert("Clave nueva de administrador de "+f[0]+": "+k+"\n\nEntréguela en persona; no se vuelve a mostrar.")}
+function avanceTodos(){cadaAyto_(()=>avance())}
+function geocodificarTodos(){const lim=Date.now()+300000;cadaAyto_(()=>{if(Date.now()<lim)geocodificar(lim)})}
+function ubicarTodos(){const t={ok:0,no:0,falta:0},lim=Date.now()+300000;cadaAyto_(()=>{const r=geocodificar(lim);t.ok+=r.ok;t.no+=r.no;t.falta+=r.falta});
+ SpreadsheetApp.getUi().alert("Ubicadas: "+t.ok+". No encontradas: "+t.no+" (corrija la dirección en Padron y borre \"No encontrada\" en origen_ubicacion para reintentar). Pendientes: "+t.falta+(t.falta?" (se siguen solas cada madrugada).":"."))}
 /* Completa encabezados de columnas nuevas en hojas creadas con versiones anteriores. */
 function cab_(n){const s=sh_(n),c=COLS[n],h=s.getRange(1,1,1,c.length).getValues()[0];
  c.forEach((x,i)=>{if(h[i]===""||h[i]===undefined)s.getRange(1,i+1).setValue(x)})}
 
 function hash_(c){return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,P_().getProperty("SAL")+String(c).trim().toUpperCase()))}
 function quien_(c){if(!c)return null;const h=hash_(c),v=sh_("Claves").getDataRange().getValues();
- for(let i=1;i<v.length;i++)if(v[i][3]===h&&String(v[i][4]).toUpperCase()==="SI")return{id:v[i][0],nombre:v[i][1],mun:v[i][2]};return null}
-
-function nuevaClave(){const u=SpreadsheetApp.getUi();
- const a=u.prompt("Nombre del capturista");if(a.getSelectedButton()!=u.Button.OK)return;
-  if(!MUN_())return u.alert("Primero corra 1. Instalar.");
- const k=clave_(a.getResponseText().trim(),MUN_());
- u.alert("Clave de "+a.getResponseText()+": "+k+"\n\nEntréguela en persona. No se vuelve a mostrar. Para darla de baja, escriba NO en la columna activa de la hoja Claves.")}
+ for(let i=1;i<v.length;i++)if(v[i][3]===h&&String(v[i][4]).toUpperCase()==="SI")return{id:v[i][0],nombre:v[i][1],mun:v[i][2],rol:v[i][5]==="admin"?"admin":"capturista"};return null}
 
 function json_(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON)}
-function doGet(){return json_({ok:true,servicio:"padron-captura",mun:MUN_()})}
+/* Elige la hoja del ayuntamiento por el código m del enlace. */
+function ayto_(m){const id=/^[A-Z0-9]{12}$/.test(String(m||""))?SP_().getProperty("T:"+m):null;SS=id?SpreadsheetApp.openById(id):null;return!!SS}
+function doGet(e){const ok=ayto_(e&&e.parameter&&e.parameter.m);return json_({ok:true,servicio:"padron-captura",mun:ok?MUN_():""})}
 
 function doPost(e){
- try{const h=P_().getProperty("HOJA");if(h&&h!==SpreadsheetApp.getActive().getId())return json_({ok:false,error:"instalar"}); /* copia sin instalar */
-  const d=JSON.parse(e.postData.contents),q=quien_(d.clave);
+ try{const d=JSON.parse(e.postData.contents);if(!ayto_(d.m))return json_({ok:false,error:"enlace"});
+  const q=quien_(d.clave);
   if(!q)return json_({ok:false,error:"clave"});
-  if(d.a==="login")return json_({ok:true,nombre:q.nombre,mun:q.mun,cat:catalogo_(q.mun)});
+  if(d.a==="login")return json_({ok:true,nombre:q.nombre,mun:q.mun,rol:q.rol,cat:catalogo_(q.mun)});
   if(d.a==="buscar")return json_(buscar_(q,d.curp));
   if(d.a==="guardar")return json_(guardar_(q,d.reg||{}));
+  if(q.rol!=="admin"&&["importar","clave","claves","baja"].indexOf(d.a)>=0)return json_({ok:false,error:"permiso"});
   if(d.a==="importar")return json_(impWeb_(q,d));
+  if(d.a==="clave"){const n=String(d.nombre||"").trim().slice(0,80);if(!n)return json_({ok:false,error:"datos"});return json_({ok:true,clave:clave_(n,MUN_(),d.rol==="admin"?"admin":"capturista")})}
+  if(d.a==="claves"){const v=sh_("Claves").getDataRange().getValues().slice(1);return json_({ok:true,claves:v.map(r=>({id:r[0],n:r[1],activa:String(r[4]).toUpperCase()==="SI",rol:r[5]==="admin"?"admin":"capturista"}))})}
+  if(d.a==="baja"){if(d.id===q.id)return json_({ok:false,error:"propia"});const s=sh_("Claves"),v=s.getDataRange().getValues();
+   for(let i=1;i<v.length;i++)if(v[i][0]===d.id){s.getRange(i+1,5).setValue("NO");return json_({ok:true})}return json_({ok:false,error:"datos"})}
   return json_({ok:false,error:"accion"})}
  catch(err){return json_({ok:false,error:"servidor"})}}
 
@@ -269,7 +285,7 @@ function catalogo_(mun){const o={localidad:[],grupo:[],evento:[],aviso:[]},v=sh_
 function crearEv_(q,v){v=v||{};const t=x=>String(x==null?"":x).trim().slice(0,200),id=t(v.id),n=t(v.n),mo=v.monto===""||v.monto==null?"":Number(v.monto),fe=t(v.fecha);
  if(!/^EV-[A-Z0-9]{4,20}$/.test(id)||!n||(mo!==""&&!(mo>=0))||(fe&&!/^\d{4}-\d{2}-\d{2}$/.test(fe)))return false;
  const L=LockService.getScriptLock();L.waitLock(25000);
- try{let s=sh_("Eventos");if(!s){s=SpreadsheetApp.getActive().insertSheet("Eventos");s.appendRow(COLS.Eventos);s.setFrozenRows(1)}cab_("Eventos");
+ try{let s=sh_("Eventos");if(!s){s=AC_().insertSheet("Eventos");s.appendRow(COLS.Eventos);s.setFrozenRows(1)}cab_("Eventos");
   if(!eventos_(q.mun).some(e=>String(e[0])===id)){let la=Number(v.llat),lo=Number(v.llng);
    /* Lugar de entrega sin coordenadas pero con dirección: se ubica una sola vez aquí. */
    if(!enMx_(la,lo)){la="";lo="";if(t(v.ldir))try{const x=Maps.newGeocoder().setRegion("mx").setLanguage("es").geocode([t(v.ldir),t(v.loc),MUN_()||q.mun,P_().getProperty("ESTADO")||"Puebla","México"].filter(String).join(", "));
@@ -315,7 +331,7 @@ function guardar_(q,r){
   r.fecha=ev[9]!==""?ev[9]:Utilities.formatDate(new Date(Number(r.ts)||Date.now()),"America/Mexico_City","yyyy-MM-dd")}
  const ext=[r.colonia||"",r.cp||"",r.correo||""];
  const sc=sh_("Capturas");
- /* Ubicación: GPS en el domicilio, o coordenadas escritas a mano, o se ubica después por la dirección (Padrón → 6). */
+ /* Ubicación: GPS en el domicilio, o coordenadas escritas a mano, o se ubica después por la dirección (cada madrugada). */
  const mA=Number(r.latM),mO=Number(r.lngM),man=!conGps&&enMx_(mA,mO);
  const lat=conGps?r.lat:man?mA:"",lng=conGps?r.lng:man?mO:"",ori=conGps?"GPS":man?"Escrita a mano":(r.direccion||r.colonia?"Pendiente":"");
  const mun=q.mun,ts=new Date(),nombre=String(r.nombre).trim(),grupos=(r.grupos||[]).join("; ");

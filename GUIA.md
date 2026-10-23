@@ -1,20 +1,18 @@
 # Padrón — Captura sin conexión (Etapa 1) · Guía
 
-Qué incluye: **app de captura** (index.html, sw.js, manifest.json) y **servidor** (Code.gs, dentro de tu hoja de Google).
+Qué incluye: **app de captura** (index.html, sw.js, manifest.json) y **servidor** (Code.gs, dentro de tu hoja central de Google).
 Todo es gratis y queda en tu cuenta de Google. NO está probado con datos reales: haz primero la prueba del final.
 
 ## Dónde se guardan los datos
-- **Cada ayuntamiento tiene su propia hoja de Google** ("Padrón Único") con su propio servidor (Code.gs). Ahí quedan todos sus datos: hojas Padron (personas), Apoyos (entregas), Capturas (historial de todo lo que llegó), Eventos (apoyos que dan de alta las áreas), Claves y Catalogos. Las fotos van a la carpeta privada "Padron-fotos" del Drive de la cuenta que instaló.
-- Las hojas se crean en el Drive de quien administra (una copia por ayuntamiento; ver *Nuevo ayuntamiento*). El ayuntamiento sigue siendo el responsable de los datos personales: hace falta su aviso de privacidad y un acuerdo por escrito sobre quién recibe y resguarda los datos.
-- **Muchos capturistas por ayuntamiento**: cada uno con su clave (menú Padrón → 2). Todos envían al mismo servidor; si llegan varios a la vez, el servidor los atiende en fila y la app reintenta sola lo que no entró. Nada se pierde: queda en el teléfono hasta que el servidor confirma.
-- **Una sola app para todos los ayuntamientos**: se publica una vez (GitHub Pages) y a cada ayuntamiento se le da su enlace: `https://…/index.html?srv=URL_DE_SU_SERVIDOR` (la URL que termina en `/exec`). El teléfono la recuerda. Solo acepta direcciones de Google Apps Script.
-- **Límites**: Google limita el tamaño de una hoja de cálculo (10 millones de celdas) y el uso diario de Apps Script en cuentas gratuitas. Para un ayuntamiento alcanza para decenas de miles de registros; verifica los límites vigentes en la página de cuotas de Google Apps Script. Si un ayuntamiento crece mucho, se le crea una hoja nueva por año.
+- **Un solo servidor, una hoja por ayuntamiento.** El servidor (Code.gs) vive en tu **hoja central** (carpeta de Drive 1.1.Plataforma). Cada ayuntamiento tiene **su propia hoja** en esa misma carpeta, con sus hojas Padron (personas), Apoyos (entregas), Capturas (historial), Eventos (apoyos dados de alta), Claves y Catalogos, y su carpeta privada de fotos de INE. La hoja central solo guarda la lista de ayuntamientos (hoja **Ayuntamientos**: nombre, hoja, enlace y código).
+- **Cada ayuntamiento ve solo lo suyo**: su enlace de la app lleva un código propio (`m=`); la app muestra solo su nombre y sus claves solo funcionan con su enlace. Nada menciona a otros ayuntamientos.
+- **Muchos capturistas por ayuntamiento**: cada uno con su clave, que da el administrador del ayuntamiento desde la app. Si llegan varios a la vez, el servidor los atiende en fila y la app reintenta sola. Nada se pierde: queda en el teléfono hasta que el servidor confirma.
+- El ayuntamiento sigue siendo el responsable de los datos personales: hace falta su aviso de privacidad y un acuerdo por escrito sobre quién recibe y resguarda los datos.
+- **Límites**: Google limita el tamaño de cada hoja (10 millones de celdas) y el uso diario de Apps Script en cuentas gratuitas, y esos límites diarios se reparten entre todos los ayuntamientos de tu cuenta. Verifica los límites vigentes en la página de cuotas de Google Apps Script.
 - El padrón integral de varios ayuntamientos (y el mapa) se arma en la Etapa 2 leyendo estas hojas; no hay que cambiar la captura.
 
-Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento y sexo** (obligatorios). Si se escribe un CURP válido, la app los sugiere a partir del CURP; el capturista los revisa con la credencial. El servidor los guarda en las columnas nuevas `nacimiento` y `sexo` de Capturas y Padron (se crean solas). (2) **El nombre ya no se usa para unir ni comparar registros.** El único identificador es el CURP. Sin CURP = siempre registro nuevo con folio `SC-`. Con CURP = solo se une a ese mismo CURP. (3) "Revisar" queda solo para apoyo repetido. Los archivos `_v4` y anteriores quedan obsoletos.
-
-## Menú Padrón (en la hoja)
-1. Instalar (una sola vez) · 2. Nueva clave de capturista · 3. Importar histórico (hoja Importar) · 4. Claves en lote: crea la hoja **NuevasClaves**; escribe nombre y municipio de cada capturista, vuelve a correrlo y aparecen las claves en la columna C para imprimir (bórralas después de entregar) · 6. Ubicar direcciones en el mapa (ver abajo) · 5. Actualizar Avance: hoja **Avance** con personas, apoyos y montos, personas que recibieron apoyos de 2 o más áreas en el año, y registros por capturista y por día. Se actualiza sola cada madrugada; este menú la actualiza al momento.
+## Menú Padrón (en la hoja central)
+1. **Instalar** (una sola vez) · 2. **Nuevo ayuntamiento**: crea todo y muestra su enlace y la clave de su administrador · 3. **Nueva clave de administrador** (si se perdió; elige antes su fila en Ayuntamientos) · 4. **Actualizar Avance de todos**: hoja Avance en la hoja de cada ayuntamiento (personas, apoyos, montos, personas con apoyos de 2 o más áreas en el año, registros por capturista y por día) · 5. **Ubicar direcciones en el mapa (todos)**. El 4 y el 5 corren solos cada madrugada.
 
 ## Instructivo para capturistas (imprimir y entregar)
 1. Abra en el celular el enlace que le dieron (Chrome en Android, Safari en iPhone). Menú del navegador → *Agregar a pantalla de inicio*.
@@ -30,43 +28,18 @@ Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento 
 9. **Al final del día, con señal**: toque *Enviar pendientes ahora* hasta que diga *Todo enviado*. No cierre sesión con pendientes.
 10. Un dato mal capturado no lo puede corregir usted: avise a su administrador con el nombre y qué está mal.
 
-## Nuevo ayuntamiento en 15 minutos (una copia por ayuntamiento)
-Cada ayuntamiento recibe **su propia copia**: su hoja, su servidor, sus claves, su carpeta de fotos y su enlace. Nada en la app ni en su hoja menciona a otros ayuntamientos.
+## Puesta en marcha (una sola vez en total)
+1. Abre la hoja central "Padrón · Central" (carpeta 1.1.Plataforma) → **Extensiones → Apps Script**. Borra lo que haya, pega todo `Code.gs` y guarda.
+2. Recarga la hoja. Menú **Padrón → 1. Instalar**. Acepta los permisos: Google avisará que la app no está verificada porque es tu propio script; elige *Avanzado → Continuar*.
+3. En Apps Script: **Implementar → Nueva implementación → Aplicación web**. *Ejecutar como*: **Yo**. *Quién tiene acceso*: **Cualquier persona**. Implementar.
+   - Si cambias el código después: **Implementar → Administrar implementaciones → editar → Nueva versión**, para conservar la misma URL y que los enlaces sigan sirviendo.
 
-**Una sola vez: la plantilla.** Crea una hoja vacía llamada "Plantilla Padrón", ve a Extensiones → Apps Script, pega `Code.gs` y guarda. No captures nada en la plantilla. GitHub Pages tiene que estar activo (Settings → Pages → rama `main`, carpeta `/ (root)`). En una cuenta gratuita, el repositorio debe ser público; el código no contiene datos.
-
-**Por cada ayuntamiento:**
-1. Plantilla → **Archivo → Hacer una copia** → nómbrala "Padrón de beneficiarios · NOMBRE DEL AYUNTAMIENTO".
-2. Abre la copia, recárgala y entra al menú **Padrón → 1. Instalar**. Escribe el nombre del ayuntamiento tal como lo verán los capturistas. Acepta los permisos: Google avisará que la app no está verificada porque es tu propio script; elige *Avanzado → Continuar*. Instalar detecta que es una copia y crea claves y una carpeta de fotos propias. Además deja programada la actualización diaria de **Avance**.
-3. Extensiones → Apps Script → **Implementar → Nueva implementación → Aplicación web**. *Ejecutar como*: **Yo**. *Quién tiene acceso*: **Cualquier persona**. Copia la URL que termina en `/exec`.
-4. Arma el enlace del ayuntamiento: `https://centrodeingenieriademocratica-arch.github.io/padron-captura/?srv=` + esa URL. Ábrelo en tu celular: arriba debe aparecer "Padrón de beneficiarios · NOMBRE".
-5. En **Catalogos** (columna municipio = `*`) escribe sus localidades (tipo `localidad`), sus grupos (tipo `grupo`) y el **aviso de privacidad del ayuntamiento** (tipo `aviso`, el texto completo en la columna valor). La app lo muestra antes de guardar.
-6. **Claves**: menú **Padrón → 4. Claves en lote**. Escribe un nombre por fila, vuelve a correrlo, imprime las claves y bórralas de la hoja después de entregarlas.
-7. **Que el ayuntamiento vea su padrón**: botón **Compartir** de su copia → correo de su enlace o administrador → *Lector* (o *Editor*, solo para quien corrige datos). Esa hoja es su padrón integral: Padron (personas), Apoyos (todas las entregas de todas las áreas), Eventos, Avance. Se descarga a Excel con Archivo → Descargar.
-8. Entrega el enlace, las claves y el *Instructivo para capturistas*.
-
-**Para que parezca solo de ellos y no se acabe el espacio**, lo recomendable es crear una **cuenta de Google gratuita por ayuntamiento** (ej. padron.nombredelmunicipio@gmail.com), hacer ahí su copia y compartirla con tu cuenta principal como Editor. Así cada ayuntamiento tiene sus 15 GB y sus propios límites de uso de Google, y el dueño que se ve es esa cuenta. Si usas tu misma cuenta para varios ayuntamientos, el espacio y los límites diarios de Google se reparten entre todos.
-
-## Instalación (detalle técnico)
-
-**A. Servidor**
-1. En Google Drive crea una **Hoja de cálculo** nueva. Nómbrala "Padrón Único".
-2. Menú **Extensiones → Apps Script**. Borra el contenido y pega todo `Code.gs`. Guarda.
-3. Vuelve a la hoja y recárgala. Aparece el menú **Padrón**. Elige **1. Instalar (una sola vez)** y acepta los permisos (Google avisará que la app no está verificada: es tu propio script; elige "Avanzado → Continuar").
-4. En la hoja **Catalogos** los trabajadores del ayuntamiento escriben localidades y grupos. Columnas: municipio, tipo (`localidad` o `grupo`) y valor. Con `*` en municipio aplica a todos.
-   - Los apoyos se dan de alta desde la app, en la sección **Apoyos y eventos** (funciona sin señal; quedan disponibles de inmediato en ese teléfono y, al enviarse, en todos los del municipio). También se pueden escribir directo en la hoja **Eventos**: cada área da de alta, una sola vez, cada apoyo que va a entregar: id (único, ej. `DIF-001`), municipio (o `*`), nombre que verá el capturista, programa, tipo de apoyo, eje, área, canal de atención, monto, fecha y activo (`SI`/`NO`). Monto vacío = el capturista escribe el monto. Fecha vacía = se usa el día de la captura. Para dejar de ofrecerlo, escriba `NO` en activo. El capturista solo elige el nombre; el servidor copia los demás datos desde esta hoja.
-   - En una hoja instalada con una versión anterior, crea la hoja **Eventos** con esas columnas en la fila 1 (o vuelve a correr *Instalar*). Los `programa`, `eje` y `area` de Catalogos ya no se usan.
-5. En Apps Script: **Implementar → Nueva implementación → Aplicación web**. *Ejecutar como*: **Yo**. *Quién tiene acceso*: **Cualquier persona**. Copia la **URL** que termina en `/exec`.
-   - Si cambias el código después, usa **Implementar → Administrar implementaciones → editar → Nueva versión**, para conservar la misma URL. En una hoja ya instalada no hace falta repetir "Instalar": las columnas `nacimiento` y `sexo` se crean solas al primer guardado.
-
-**B. App de captura**
-6. Da a los capturistas el enlace de la app con `?srv=` y la URL de tu servidor al final (ver *Dónde se guardan los datos*). O, si prefieres, abre `index.html` y reemplaza `PEGUE_AQUI_LA_URL_DE_LA_APP_WEB` por esa URL (entre comillas).
-7. Publica la carpeta en un alojamiento gratuito con https (GitHub Pages, Cloudflare Pages o Netlify), junto con `sw.js` y `manifest.json`. Verifica en su sitio las condiciones actuales del plan gratuito.
-8. En el celular abre el enlace en Chrome y elige **Instalar app / Añadir a pantalla de inicio**. Abre la app una vez con señal: así queda guardada para usarse sin conexión.
-
-**C. Claves de capturista**
-9. Menú **Padrón → 2. Nueva clave de capturista** (o 4, en lote). Escribe el nombre; el municipio es el del ayuntamiento de esta copia. La clave se muestra **una sola vez**; entrégala en persona. Para darla de baja escribe `NO` en la columna *activa* de la hoja **Claves**.
-10. El capturista no puede elegir el municipio: es siempre el de esta copia.
+## Nuevo ayuntamiento (1 minuto)
+1. Hoja central → **Padrón → 2. Nuevo ayuntamiento** → escribe su nombre como lo verán los capturistas (ej. *Ayuntamiento de Chiautzingo*).
+2. Se crea sola su hoja "Padrón de beneficiarios · Chiautzingo" en la misma carpeta, su carpeta privada de fotos y su primera clave (administrador). Aparecen **el enlace de la app y la clave del administrador**: copia ambos (la clave no se vuelve a mostrar; el enlace queda en la hoja Ayuntamientos).
+3. Entrega al administrador del ayuntamiento el enlace, su clave y el *Instructivo para capturistas*. Con su clave, en la app, él da las claves a sus capturistas (*Claves de capturistas*) e importa sus listas de Excel (*Importar lista de Excel*).
+4. Opcional: en la hoja del ayuntamiento, **Catalogos** (municipio = `*`): localidades (tipo `localidad`), grupos (tipo `grupo`) y el **aviso de privacidad** (tipo `aviso`, texto completo en valor).
+5. **Que el ayuntamiento vea su padrón**: botón **Compartir** de su hoja → correo de su enlace → *Lector*. Esa hoja es su padrón integral. Se descarga a Excel con Archivo → Descargar.
 
 ## Uso diario
 - **Capturista**: entra con su clave (con señal, solo la primera vez), llena el registro y toca *Guardar*. El CURP puede ir vacío. Si no hay señal queda en el teléfono y se envía solo al volver la conexión, o con el botón *Enviar pendientes ahora*.
@@ -139,18 +112,14 @@ Lo hace el administrador (dueño de la hoja); el capturista nunca ve el padrón.
 **Importar beneficiarios históricos (Excel), tal como los tenga cada área**
 **Lo más fácil: desde la app.** En la app, abre **Importar lista de Excel (histórico)**, elige el archivo (Excel o CSV, tal como venga) y, si la lista no trae columnas de programa o área, escríbelos una vez. Oprime **Importar al padrón**. La lista completa queda en una hoja nueva `Importar <archivo> · <código>` (el dato original, con todas sus columnas) y cada persona pasa al padrón. Si se corta la señal, **Seguir importando** continúa sin duplicar. Necesita señal. NO probado en Google real.
 
-**También desde la hoja:**
-1. En la hoja del ayuntamiento: **Archivo → Importar → Subir** el Excel → *Insertar hojas nuevas*. Cambia el nombre de esa hoja para que empiece con **Importar** (ej. `Importar DIF 2024`, `Importar Becas 2023`). Puede haber varias.
-2. No hay que reacomodar nada. La fila 1 debe tener los encabezados, como sea que los llamen. El sistema reconoce nombres distintos para lo mismo: CURP, apellido paterno y materno con nombre(s) o nombre completo, género o sexo, fecha de nacimiento, calle, núm. ext., domicilio o dirección, colonia o barrio, comunidad, localidad o junta auxiliar, CP, teléfono o celular, correo, grupo, programa, tipo de apoyo o concepto, área o dependencia, monto o importe, fecha de entrega, latitud y longitud.
-3. Abre esa hoja y usa el menú **Padrón → 3. Importar histórico**. Si la lista no trae columna de programa, pregunta una vez de qué programa es toda la lista y qué área lo entregó.
-4. Al terminar, un mensaje dice qué columna se usó para qué y cuáles se conservaron sin usar. **Nada se borra ni se cambia** en la hoja original: solo se agregan al final `clave_padron` (la persona en Padron) y `resultado`. No borres esas hojas: son el dato original del ayuntamiento.
-5. Se une solo por CURP. Si el CURP viene mal escrito, la persona se importa sin CURP (folio `SC-`) y se anota en resultado. Si faltan nacimiento o sexo y el CURP es válido, se toman del CURP. Se marca como repetido solo el mismo programa con la misma fecha.
-6. Si un encabezado no se reconoce y sí lo necesitas, cámbiale el nombre (ej. a `Colonia`), borra las columnas `resultado` y `clave_padron` y vuelve a correr. Con listas muy grandes, el mensaje pide volver a correr para seguir.
+Solo el administrador del ayuntamiento ve esta opción. No hay que reacomodar nada: se salta las filas de título y reconoce nombres distintos para lo mismo (CURP, apellido paterno y materno con nombre(s) o nombre completo, género o sexo, fecha de nacimiento, calle, núm. ext., domicilio o dirección, colonia o barrio, comunidad, localidad o junta auxiliar, CP, teléfono o celular, correo, grupo, programa, tipo de apoyo o concepto, área o dependencia, monto o importe, fecha de entrega, latitud y longitud). Al terminar dice qué columna se usó para qué y cuáles se guardaron sin usar.
+- Se une solo por CURP. Si el CURP viene mal escrito, la persona se importa sin CURP (folio `SC-`) y se anota en la columna `resultado` de la hoja Importar. Si faltan nacimiento o sexo y el CURP es válido, se toman del CURP. Se marca como repetido solo el mismo programa con la misma fecha.
+- Si no encuentra la columna del nombre, lo dice con la lista de encabezados: cambia ese encabezado a `Nombre` en el Excel y vuelve a importarlo.
 
 **Ubicar direcciones en el mapa (coordenadas)**
-- Menú **Padrón → 6. Ubicar direcciones en el mapa**: convierte en coordenadas la dirección de cada persona que no las tenga (las importadas y las capturadas fuera del domicilio). Es gratis y usa el servicio de mapas de Google desde tu cuenta. Tiene un límite diario: lo que falte se sigue solo cada madrugada.
+- Cada madrugada (o con el menú **Padrón → 5** de la hoja central) se convierte en coordenadas la dirección de cada persona que no las tenga (las importadas y las capturadas fuera del domicilio). Es gratis y usa el servicio de mapas de Google desde tu cuenta. Tiene un límite diario: lo que falte se sigue solo cada madrugada.
 - En Padron, la columna `origen_ubicacion` dice de dónde salió cada punto: *GPS* (tomado en el domicilio), *Escrita a mano*, *Del Excel*, *Geocodificada* o *Pendiente*. La columna `precision` dice si la dirección se encontró exacta, por calle o solo aproximada (colonia o localidad).
-- *No encontrada*: corrige la dirección en Padron, borra "No encontrada" y vuelve a correr el menú.
+- *No encontrada*: corrige la dirección en Padron, borra "No encontrada" y se reintenta esa madrugada.
 
 **2. Completar un registro Incompleto (solo a mano)**
 1. Si sabes con certeza el CURP de un registro `SC-` (por ejemplo, con la credencial), en **Padron** escribe el CURP en **clave** y en **curp** de esa fila, y cambia **estado** a `Completo`.
