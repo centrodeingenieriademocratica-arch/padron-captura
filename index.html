@@ -75,7 +75,14 @@ const DB=new Promise((ok,er)=>{const r=indexedDB.open("padron",1);r.onupgradenee
 const tx=async(s,m,f)=>{const d=await DB;return new Promise((ok,er)=>{const t=d.transaction(s,m),r=f(t.objectStore(s));t.oncomplete=()=>ok(r&&r.result);t.onerror=()=>er(t.error)})};
 const put=(s,v,k)=>tx(s,"readwrite",o=>o.put(v,k)),get=(s,k)=>tx(s,"readonly",o=>o.get(k)),all=s=>tx(s,"readonly",o=>o.getAll()),del=(s,k)=>tx(s,"readwrite",o=>o.delete(k));
 function msg(t,c){const m=$("m");m.className=c||"";m.textContent=t;if(t)window.scrollTo(0,0)}
-const post=async b=>(await fetch(API,{method:"POST",body:JSON.stringify(b)})).json();
+/* Modo demostración: si no se ha pegado la URL del servidor, responde con datos de ejemplo y no envía nada a ningún lado. */
+const DEMO=API.startsWith("PEGUE");
+if(DEMO){const d=document.createElement("div");d.className="c";d.style.cssText="border-color:var(--wn);color:var(--wn)";d.textContent="MODO DEMOSTRACIÓN: use cualquier clave. Los datos no se envían a ningún servidor. Para probar que ya está registrada una persona, escriba el CURP GOMA800101HPLRRN09.";document.querySelector("main").prepend(d)}
+const demoPost=async b=>{await new Promise(r=>setTimeout(r,400));
+ if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{programa:["Despensa bimestral","Becas escolares","Techo digno"],eje:["Bienestar","Educación","Vivienda"],area:["DIF municipal","Desarrollo Social"],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
+ if(b.a==="buscar")return b.curp==="GOMA800101HPLRRN09"?{ok:true,existe:true,nombre:"Ana Gómez Martínez"}:{ok:true,existe:false};
+ return{ok:true}};
+const post=async b=>DEMO?demoPost(b):(await fetch(API,{method:"POST",body:JSON.stringify(b)})).json();
 const opts=(a,v="")=>`<option value="">${v}</option>`+(a||[]).map(x=>`<option>${esc(x)}</option>`).join("");
 const comp=(f,mx=1000,q=.65,g)=>new Promise(ok=>{if(!f)return ok("");const im=new Image(),u=URL.createObjectURL(f);im.onload=()=>{const k=Math.min(1,mx/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;const x=c.getContext("2d");if(g)x.filter="grayscale(1) contrast(1.4)";x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL("image/jpeg",q))};im.onerror=()=>ok("");im.src=u});
 /* ---- Lectura de INE en el teléfono (Tesseract.js; la imagen no sale del dispositivo) ---- */
