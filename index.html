@@ -67,11 +67,12 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <label>Grupos poblacionales</label><div id="gr"></div>
 <label>Foto de la persona</label><input id="fb" type="file" accept="image/*" capture="user">
 </div>
-<label>Ubicación del domicilio</label><button class="s" onclick="geo()" id="bg" style="margin-top:0">Tomar mi ubicación actual</button><div class="st" id="gs">Sin ubicación todavía (obligatoria)</div>
-<button class="s" onclick="sinGps()" id="bn">No puedo tomar la ubicación</button>
+<label>Ubicación del domicilio</label><button class="s" onclick="geo()" id="bg" style="margin-top:0">Estoy en el domicilio: tomar ubicación GPS</button><div class="st" id="gs">Sin ubicación todavía (obligatoria)</div>
+<button class="s" onclick="sinGps()" id="bn">No estoy en el domicilio o no hay GPS</button>
 <div id="sgb" hidden>
-<label for="mg">Motivo por el que no hay ubicación</label><select id="mg"></select>
-<div class="st">Use esto solo si de verdad no se pudo. Intente primero con el botón de arriba, al aire libre.</div></div>
+<label for="mg">¿Por qué no se toma aquí la ubicación?</label><select id="mg"></select>
+<label for="co">Coordenadas del domicilio (opcional; ej. 19.0414, -98.2063)</label><input id="co" inputmode="decimal" autocomplete="off" placeholder="latitud, longitud">
+<div class="st">Si no las sabe, déjelo vacío: el domicilio se ubicará en el mapa con la dirección. Por eso escriba calle, número, colonia, código postal y localidad completos. No tome el GPS si no está en el domicilio.</div></div>
 <div class="ck" style="margin-top:14px"><input type="checkbox" id="ap"><label for="ap" style="margin:0;color:var(--ink)">Registrar un apoyo entregado</label></div>
 <div id="apb" hidden>
 <label for="evt">Apoyo que recibe</label><select id="evt"></select>
@@ -97,7 +98,7 @@ if(!API.startsWith("PEGUE")){const q=new URLSearchParams(location.search);if(q.g
  try{const m={name:"Padrón de beneficiarios",short_name:"Padrón",start_url:location.origin+location.pathname+"?srv="+encodeURIComponent(API),display:"standalone",background_color:"#EEF1F4",theme_color:"#0F6B5C",lang:"es",
   icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230F6B5C'/%3E%3Cpath d='M30 52l14 14 28-30' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",sizes:"any",type:"image/svg+xml"}]};
   document.querySelector('link[rel="manifest"]').href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/manifest+json"}))}catch(e){}}
-const MOTIVOS=["GPS sin señal o no funciona","La persona no permitió tomar la ubicación","Domicilio de difícil acceso","Otro (explicar en Notas)"];
+const MOTIVOS=["Captura fuera del domicilio (oficina, evento)","GPS sin señal o no funciona","La persona no permitió tomar la ubicación","Domicilio de difícil acceso","Otro (explicar en Notas)"];
 const SEXOS=["Mujer","Hombre"];
 const CURP=/^[A-Z]{4}\d{6}[HM][A-Z]{2}[B-DF-HJ-NP-TV-Z]{3}[A-Z\d]\d$/,$=i=>document.getElementById(i),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let S=null,GP=null,busy=false,EX=null,PERS=null;
@@ -215,6 +216,10 @@ async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX|
  const mg=GP?"":$("mg").value;
  if(!GP&&!mg)return msg("Falta la ubicación del domicilio. Toque «Tomar mi ubicación actual» o, si no se puede, «No puedo tomar la ubicación» y elija el motivo.","e");
  if(mg.startsWith("Otro")&&!$("no").value.trim())return msg("Si el motivo es «Otro», explíquelo en Notas.","e");
+ let cm=null;const ct=GP?"":$("co").value.trim();
+ if(ct){const z=ct.replace(/[^\d.,\-\s]/g,"").split(/[,\s]+/).filter(Boolean).map(Number);
+  if(z.length!==2||!(z[0]>=14&&z[0]<=33&&z[1]>=-118.5&&z[1]<=-86))return msg("Las coordenadas no parecen de México. Escríbalas como 19.0414, -98.2063 o deje vacío.","e");cm=z}
+ if(!GP&&!cm&&!EX&&!$("dir").value.trim()&&!$("col").value.trim())return msg("Sin GPS ni coordenadas, escriba el domicilio completo para ubicarlo en el mapa.","e");
  if(!$("av").checked)return msg("Confirme que informó el aviso de privacidad.","e");
  const ap=$("ap").checked;if(EX&&!ap)return msg("Esta persona ya está registrada: registre el apoyo nuevo.","e");
  const ev=ap?evSel():null;if(ap&&!ev)return msg("Elija el apoyo que recibe la persona.","e");
@@ -222,12 +227,12 @@ async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX|
  const cp=EX?"":$("cp").value.trim();if(cp&&!/^\d{5}$/.test(cp))return msg("El código postal lleva 5 números.","e");
  $("bs").disabled=true;
  try{const v=i=>EX?"":$(i).value.trim();
- const r={id:Date.now().toString(36)+Math.random().toString(36).slice(2,8),ts:Date.now(),curp,nombre:nom,nacimiento:EX?"":nac,sexo:EX?"":sx,localidad:v("loc"),tel:v("tel"),direccion:v("dir"),colonia:v("col"),cp,correo:v("mail"),lat:GP?GP.lat:"",lng:GP?GP.lng:"",sinGps:mg,
+ const r={id:Date.now().toString(36)+Math.random().toString(36).slice(2,8),ts:Date.now(),curp,nombre:nom,nacimiento:EX?"":nac,sexo:EX?"":sx,localidad:v("loc"),tel:v("tel"),direccion:v("dir"),colonia:v("col"),cp,correo:v("mail"),lat:GP?GP.lat:"",lng:GP?GP.lng:"",latM:cm?cm[0]:"",lngM:cm?cm[1]:"",sinGps:mg,
  grupos:EX?[]:[...document.querySelectorAll("#gr input:checked")].map(i=>i.value),notas:$("no").value.trim(),aviso:true,fotoBen:EX?"":await comp($("fb").files[0]),fotoIne:EX?"":await comp($("fi").files[0]),fotoIneR:EX?"":await comp($("fr").files[0])};
  /* Se manda la definición completa del apoyo: si el servidor aún no lo tiene, lo crea. */
  if(ev)Object.assign(r,{evento:ev.id,ev,programa:ev.programa||ev.n,monto:sinMonto(ev)?+$("mo").value:ev.monto,fotoApoyo:await comp($("fa").files[0])});
  await put("cola",r);
- ["curp","nom","nac","sx","loc","tel","mail","dir","col","cp","no","mo","evt","fb","fi","fr","fa"].forEach(i=>$(i).value="");$("mob").hidden=true;$("evd").textContent="";$("dc").textContent="";$("ap").checked=false;$("apb").hidden=true;$("av").checked=false;GP=null;$("gs").textContent="Sin ubicación todavía (obligatoria)";$("sgb").hidden=true;$("mg").value="";quitaEx();
+ ["curp","nom","nac","sx","loc","tel","mail","dir","col","cp","no","mo","evt","fb","fi","fr","fa","co"].forEach(i=>$(i).value="");$("mob").hidden=true;$("evd").textContent="";$("dc").textContent="";$("ap").checked=false;$("apb").hidden=true;$("av").checked=false;GP=null;$("gs").textContent="Sin ubicación todavía (obligatoria)";$("sgb").hidden=true;$("mg").value="";quitaEx();
  document.querySelectorAll("#gr input").forEach(i=>i.checked=false);msg("Registro guardado en este teléfono.","o");await pinta();sync()}
  catch(e){msg("No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.","e")}
  finally{$("bs").disabled=false}}

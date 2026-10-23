@@ -14,7 +14,7 @@ Todo es gratis y queda en tu cuenta de Google. NO está probado con datos reales
 Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento y sexo** (obligatorios). Si se escribe un CURP válido, la app los sugiere a partir del CURP; el capturista los revisa con la credencial. El servidor los guarda en las columnas nuevas `nacimiento` y `sexo` de Capturas y Padron (se crean solas). (2) **El nombre ya no se usa para unir ni comparar registros.** El único identificador es el CURP. Sin CURP = siempre registro nuevo con folio `SC-`. Con CURP = solo se une a ese mismo CURP. (3) "Revisar" queda solo para apoyo repetido. Los archivos `_v4` y anteriores quedan obsoletos.
 
 ## Menú Padrón (en la hoja)
-1. Instalar (una sola vez) · 2. Nueva clave de capturista · 3. Importar histórico (hoja Importar) · 4. Claves en lote: crea la hoja **NuevasClaves**; escribe nombre y municipio de cada capturista, vuelve a correrlo y aparecen las claves en la columna C para imprimir (bórralas después de entregar) · 5. Actualizar Avance: hoja **Avance** con personas, apoyos y montos, personas que recibieron apoyos de 2 o más áreas en el año, y registros por capturista y por día. Se actualiza sola cada madrugada; este menú la actualiza al momento.
+1. Instalar (una sola vez) · 2. Nueva clave de capturista · 3. Importar histórico (hoja Importar) · 4. Claves en lote: crea la hoja **NuevasClaves**; escribe nombre y municipio de cada capturista, vuelve a correrlo y aparecen las claves en la columna C para imprimir (bórralas después de entregar) · 6. Ubicar direcciones en el mapa (ver abajo) · 5. Actualizar Avance: hoja **Avance** con personas, apoyos y montos, personas que recibieron apoyos de 2 o más áreas en el año, y registros por capturista y por día. Se actualiza sola cada madrugada; este menú la actualiza al momento.
 
 ## Instructivo para capturistas (imprimir y entregar)
 1. Abra en el celular el enlace que le dieron (Chrome en Android, Safari en iPhone). Menú del navegador → *Agregar a pantalla de inicio*.
@@ -22,7 +22,7 @@ Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento 
 3. **Dar de alta un apoyo** (una sola vez por apoyo): *Apoyos y eventos* → *Dar de alta un apoyo o evento* → nombre, programa, tipo, área, canal, monto y fecha → *Guardar apoyo*.
    - **Apoyo periódico** (mismo programa, otra entrega o periodo): en *¿Es una nueva entrega…?* elija el apoyo que ya existe; se copian sus datos y solo escribe el periodo (ej. Noviembre 2026) y la fecha. Recibir otra entrega del mismo apoyo periódico no se marca como repetido; recibir dos veces la misma entrega, sí.
 4. **Registrar a una persona**: foto de la INE (frente y reverso) si la trae; revise lo que se llenó solo. CURP (si no lo tiene, déjelo vacío). Nombre, nacimiento, sexo, domicilio, colonia, CP, localidad, teléfono, grupos, foto.
-5. **Ubicación**: en el domicilio, al aire libre, toque *Tomar mi ubicación actual*. Si no se puede, *No puedo tomar la ubicación* y elija el motivo.
+5. **Ubicación**: si está en el domicilio, al aire libre, toque *Estoy en el domicilio: tomar ubicación GPS*. Si captura en la oficina, en un evento o no hay GPS, toque *No estoy en el domicilio o no hay GPS*, elija el motivo y escriba completa la dirección (calle, número, colonia, CP, localidad). Si conoce las coordenadas (por ejemplo, de Google Maps), escríbalas. **Nunca tome el GPS si no está en el domicilio.**
 6. **Apoyo**: marque *Registrar un apoyo entregado*, elija el apoyo de la lista, escriba el monto solo si lo pide, foto del apoyo.
 7. Lea o explique el aviso de privacidad, marque la casilla y toque **Guardar registro**.
 8. Si aparece *Ya registrado: NOMBRE*, no capture otra vez sus datos: solo el apoyo nuevo.
@@ -135,13 +135,18 @@ Lo hace el administrador (dueño de la hoja); el capturista nunca ve el padrón.
 3. Si de verdad se entregó dos veces: déjalo. Si fue captura doble: borra la fila repetida en Apoyos.
 4. Al terminar, cambia el **estado** de esa fila en **Capturas** de `Revisar` a `Revisada`. El servidor no lee ese valor, así que no afecta nada más.
 
-**Importar beneficiarios históricos (Excel)**
-1. En la hoja del ayuntamiento: **Archivo → Importar → Subir** tu Excel → *Insertar hojas nuevas*. Renombra esa hoja a **Importar**.
-2. La fila 1 debe tener encabezados. Se reconocen: curp, nombre (obligatorio), nacimiento, sexo, localidad, telefono, correo, direccion, colonia, cp, grupos, programa, tipo, eje, area, canal, monto, fecha (también "nombre completo", "fecha de nacimiento", "domicilio", "código postal", "tipo de apoyo", "importe", "fecha de entrega"). Las demás columnas se ignoran.
-3. Menú **Padrón → 3. Importar histórico** y escribe el municipio igual que en las claves.
-4. Se une solo por CURP: si el CURP ya está, no se duplica la persona y solo se agrega su apoyo. Sin CURP, cada fila es una persona nueva con folio `SC-`. Si falta nacimiento o sexo y hay CURP, se toman del CURP. Si la fila trae programa, se agrega el apoyo (los repetidos del mismo programa y año quedan marcados como *Duplicado probable*).
-5. La columna **resultado** dice qué pasó en cada fila. Las filas con CURP no válido no se importan: corrígelo o bórralo, y vuelve a correr. Las filas con resultado no se repiten, así que puedes correrlo varias veces (con listas muy grandes, pide seguir).
-6. Para otra lista, borra la hoja Importar e importa la siguiente.
+**Importar beneficiarios históricos (Excel), tal como los tenga cada área**
+1. En la hoja del ayuntamiento: **Archivo → Importar → Subir** el Excel → *Insertar hojas nuevas*. Cambia el nombre de esa hoja para que empiece con **Importar** (ej. `Importar DIF 2024`, `Importar Becas 2023`). Puede haber varias.
+2. No hay que reacomodar nada. La fila 1 debe tener los encabezados, como sea que los llamen. El sistema reconoce nombres distintos para lo mismo: CURP, apellido paterno y materno con nombre(s) o nombre completo, género o sexo, fecha de nacimiento, calle, núm. ext., domicilio o dirección, colonia o barrio, comunidad, localidad o junta auxiliar, CP, teléfono o celular, correo, grupo, programa, tipo de apoyo o concepto, área o dependencia, monto o importe, fecha de entrega, latitud y longitud.
+3. Abre esa hoja y usa el menú **Padrón → 3. Importar histórico**. Si la lista no trae columna de programa, pregunta una vez de qué programa es toda la lista y qué área lo entregó.
+4. Al terminar, un mensaje dice qué columna se usó para qué y cuáles se conservaron sin usar. **Nada se borra ni se cambia** en la hoja original: solo se agregan al final `clave_padron` (la persona en Padron) y `resultado`. No borres esas hojas: son el dato original del ayuntamiento.
+5. Se une solo por CURP. Si el CURP viene mal escrito, la persona se importa sin CURP (folio `SC-`) y se anota en resultado. Si faltan nacimiento o sexo y el CURP es válido, se toman del CURP. Se marca como repetido solo el mismo programa con la misma fecha.
+6. Si un encabezado no se reconoce y sí lo necesitas, cámbiale el nombre (ej. a `Colonia`), borra las columnas `resultado` y `clave_padron` y vuelve a correr. Con listas muy grandes, el mensaje pide volver a correr para seguir.
+
+**Ubicar direcciones en el mapa (coordenadas)**
+- Menú **Padrón → 6. Ubicar direcciones en el mapa**: convierte en coordenadas la dirección de cada persona que no las tenga (las importadas y las capturadas fuera del domicilio). Es gratis y usa el servicio de mapas de Google desde tu cuenta. Tiene un límite diario: lo que falte se sigue solo cada madrugada.
+- En Padron, la columna `origen_ubicacion` dice de dónde salió cada punto: *GPS* (tomado en el domicilio), *Escrita a mano*, *Del Excel*, *Geocodificada* o *Pendiente*. La columna `precision` dice si la dirección se encontró exacta, por calle o solo aproximada (colonia o localidad).
+- *No encontrada*: corrige la dirección en Padron, borra "No encontrada" y vuelve a correr el menú.
 
 **2. Completar un registro Incompleto (solo a mano)**
 1. Si sabes con certeza el CURP de un registro `SC-` (por ejemplo, con la credencial), en **Padron** escribe el CURP en **clave** y en **curp** de esa fila, y cambia **estado** a `Completo`.
