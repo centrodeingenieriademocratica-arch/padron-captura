@@ -34,7 +34,10 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <button class="s" onclick="$('evf').hidden=!$('evf').hidden">Dar de alta un apoyo o evento</button>
 <div id="evf" hidden>
 <div class="st">Se da de alta una sola vez. Después, al registrar a cada persona, solo se elige de la lista. Funciona sin señal.</div>
-<label for="en">Nombre del apoyo o evento (lo que verá quien captura)</label><input id="en" autocomplete="off">
+<label for="eb0">¿Es una nueva entrega o un nuevo periodo de un apoyo que ya existe?</label><select id="eb0"></select>
+<div id="epb" hidden><label for="epe">Periodo o entrega (ej. Noviembre 2026, 2.ª entrega)</label><input id="epe" autocomplete="off">
+<div class="st">Se copian programa, tipo, eje, área, canal y monto del apoyo elegido. Cambie solo lo que sea distinto y ponga la fecha de esta entrega.</div></div>
+<div id="enb"><label for="en">Nombre del apoyo o evento (lo que verá quien captura)</label><input id="en" autocomplete="off"></div>
 <label for="ep">Programa</label><input id="ep" list="dl-ep" autocomplete="off"><datalist id="dl-ep"></datalist>
 <label for="et">Tipo de apoyo</label><input id="et" list="dl-et" autocomplete="off"><datalist id="dl-et"></datalist>
 <label for="ee">Eje</label><input id="ee" list="dl-ee" autocomplete="off"><datalist id="dl-ee"></datalist>
@@ -175,18 +178,25 @@ async function refrescar(){try{if(!navigator.onLine||!S)return;const x=await pos
 /* ---- Apoyos y eventos: los del servidor más los dados de alta en este teléfono que aún no llegan ---- */
 const sinMonto=e=>e.monto===""||e.monto==null;
 const evLista=()=>[...(S.cat.evento||[]),...(S.evl||[])];
-const evDesc=e=>[e.area,e.tipo,e.canal,sinMonto(e)?"monto variable":"$"+e.monto,e.fecha?String(e.fecha).slice(0,10):""].filter(x=>x!==""&&x!=null).join(" · ");
+const evDesc=e=>[e.periodo,e.area,e.tipo,e.canal,sinMonto(e)?"monto variable":"$"+e.monto,e.fecha?String(e.fecha).slice(0,10):""].filter(x=>x!==""&&x!=null).join(" · ");
 function pintaEv(){const l=evLista(),v=$("evt").value;
  $("evt").innerHTML='<option value="">Elija el apoyo</option>'+l.map(e=>`<option value="${esc(e.id)}">${esc(e.n)}</option>`).join("");$("evt").value=v;
+ $("eb0").innerHTML='<option value="">No, es un apoyo nuevo</option>'+l.map(e=>`<option value="${esc(e.id)}">${esc(e.n)}</option>`).join("");
  $("evn").textContent=l.length?l.length+" apoyo(s) disponibles para elegir.":"Aún no hay apoyos. Dé de alta el primero.";
  [["ep","programa"],["et","tipo"],["ee","eje"],["ea","area"],["ec","canal"]].forEach(([i,k])=>$("dl-"+i).innerHTML=[...new Set(l.map(e=>e[k]).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join(""))}
-async function altaEv(){const n=$("en").value.trim(),mo=$("em").value;
+/* Apoyos periódicos: la nueva entrega hereda los datos y el nombre del apoyo original (base) y solo cambia periodo y fecha. */
+const raiz=e=>{const b=e&&e.base&&evLista().find(x=>x.id===e.base);return b||(e&&e.base?Object.assign({},e,{id:e.base,n:String(e.n).split(" · ")[0]}):e)};
+function baseSel(){const e=evLista().find(x=>x.id===$("eb0").value);$("epb").hidden=!e;$("enb").hidden=!!e;$("epe").value="";$("ef").value="";
+ if(e){const r=raiz(e);[["ep","programa"],["et","tipo"],["ee","eje"],["ea","area"],["ec","canal"],["em","monto"]].forEach(([i,k])=>$(i).value=e[k]??"");$("en").value=r.nr||r.n;$("epe").focus()}else $("en").value=""}
+async function altaEv(){const b=evLista().find(x=>x.id===$("eb0").value),r=raiz(b),pe=$("epe").value.trim(),mo=$("em").value;
+ if(b&&!pe&&!$("ef").value)return msg("Escriba el periodo o la fecha de esta entrega.","e");
+ const n=b?(r.nr||r.n)+" · "+(pe||$("ef").value):$("en").value.trim();
  if(!n)return msg("Escriba el nombre del apoyo o evento.","e");
  if(evLista().some(e=>String(e.n).toLowerCase()===n.toLowerCase()))return msg("Ya existe un apoyo con ese nombre. Elíjalo de la lista o use otro nombre.","e");
- const ev={id:"EV-"+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,5).toUpperCase(),n,programa:$("ep").value.trim(),tipo:$("et").value.trim(),eje:$("ee").value.trim(),area:$("ea").value.trim(),canal:$("ec").value.trim(),monto:mo===""?"":+mo,fecha:$("ef").value};
+ const ev={id:"EV-"+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,5).toUpperCase(),n,programa:$("ep").value.trim(),tipo:$("et").value.trim(),eje:$("ee").value.trim(),area:$("ea").value.trim(),canal:$("ec").value.trim(),monto:mo===""?"":+mo,fecha:$("ef").value,base:b?(r.base||r.id):"",periodo:b?(pe||$("ef").value):"",nr:b?(r.nr||r.n):""};
  $("eb").disabled=true;
  try{S.evl=[...(S.evl||[]),ev];await put("meta",S,"s");await put("cola",{id:ev.id,ts:Date.now(),tipoReg:"evento",nombre:"Apoyo: "+n,ev});
- ["en","ep","et","ee","ea","ec","em","ef"].forEach(i=>$(i).value="");$("evf").hidden=true;pintaEv();msg("Apoyo «"+n+"» guardado. Ya aparece en la lista.","o");await pinta();sync()}
+ ["en","ep","et","ee","ea","ec","em","ef","epe","eb0"].forEach(i=>$(i).value="");$("epb").hidden=true;$("enb").hidden=false;$("evf").hidden=true;pintaEv();msg("Apoyo «"+n+"» guardado. Ya aparece en la lista.","o");await pinta();sync()}
  catch(e){msg("No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.","e")}
  finally{$("eb").disabled=false}}
 function geo(){$("gs").textContent="Buscando señal GPS…";navigator.geolocation.getCurrentPosition(p=>{GP={lat:p.coords.latitude,lng:p.coords.longitude};$("gs").textContent=`Ubicación tomada (precisión ±${Math.round(p.coords.accuracy)} m)`;$("sgb").hidden=true;$("mg").value=""},
@@ -194,6 +204,7 @@ function geo(){$("gs").textContent="Buscando señal GPS…";navigator.geolocatio
 function sinGps(){if(GP){msg("Ya hay ubicación tomada. No hace falta el motivo.","w");return}$("sgb").hidden=false;$("mg").focus()}
 $("ap").onchange=()=>$("apb").hidden=!$("ap").checked;
 const evSel=()=>S?evLista().find(e=>e.id===$("evt").value):null;
+$("eb0").onchange=baseSel;
 $("evt").onchange=()=>{const e=evSel();$("evd").textContent=e?evDesc(e):"";const m=!!e&&sinMonto(e);$("mob").hidden=!m;if(!m)$("mo").value=""};
 
 async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX||$("nom").value.trim();
