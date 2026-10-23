@@ -31,6 +31,8 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <button class="s" onclick="sync(true)">Enviar pendientes ahora</button></div>
 <div class="c" id="evc"><h2>Apoyos y eventos</h2>
 <div class="st" id="evn"></div>
+<label for="emd">Capturar beneficiarios de un evento o entrega</label><select id="emd"></select>
+<button onclick="entraEv($('emd').value)">Entrar al evento</button>
 <button class="s" onclick="$('evf').hidden=!$('evf').hidden">Dar de alta un apoyo o evento</button>
 <div id="evf" hidden>
 <div class="st">Se da de alta una sola vez. Después, al registrar a cada persona, solo se elige de la lista. Funciona sin señal.</div>
@@ -45,8 +47,15 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <label for="ec">Canal de atención</label><input id="ec" list="dl-ec" autocomplete="off"><datalist id="dl-ec"></datalist>
 <div class="r"><div><label for="em">Monto por persona ($)</label><input id="em" type="number" inputmode="decimal" min="0"></div><div><label for="ef">Fecha</label><input id="ef" type="date"></div></div>
 <div class="st">Monto vacío: quien captura escribe el monto de cada entrega. Fecha vacía: se usa el día de cada captura.</div>
+<label for="el">Lugar de entrega (si es en un punto fijo: oficina, plaza, escuela). Vacío = se entrega en cada domicilio</label><input id="el" autocomplete="off">
+<label for="eld">Dirección del lugar</label><input id="eld" autocomplete="off">
+<button class="s" onclick="geoEv()">Estoy en el lugar: tomar ubicación GPS</button><div class="st" id="egs">Sin ubicación del lugar (si no la toma, se ubica con la dirección)</div>
+<label for="elc">O coordenadas del lugar (ej. 19.0414, -98.2063)</label><input id="elc" inputmode="decimal" autocomplete="off">
+<label for="elo">Localidad de los beneficiarios (opcional; se llena sola en cada registro)</label><input id="elo" list="dl-loc" autocomplete="off">
+<div class="st">Todo lo de este apoyo se escribe una sola vez. Al entrar al evento, por cada persona solo se piden sus datos.</div>
 <button onclick="altaEv()" id="eb">Guardar apoyo</button></div></div>
 <div class="c"><h1>Nuevo registro</h1>
+<div id="mb" class="c" hidden style="border-color:var(--ok);margin:0 0 12px"><b id="mbn"></b><div class="st" id="mbd"></div><button class="s" onclick="saleEv()">Salir del evento</button></div>
 <label for="fi">Credencial INE (frente), opcional</label><input id="fi" type="file" accept="image/*" capture="environment" onchange="leerIne()">
 <label for="fr">Credencial INE (reverso), opcional</label><input id="fr" type="file" accept="image/*" capture="environment">
 <div class="st" id="os">Al tomar la foto se leen los datos en el teléfono y se llenan los campos. Revíselos siempre.</div>
@@ -67,16 +76,17 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <label>Grupos poblacionales</label><div id="gr"></div>
 <label>Foto de la persona</label><input id="fb" type="file" accept="image/*" capture="user">
 </div>
-<label>Ubicación del domicilio</label><button class="s" onclick="geo()" id="bg" style="margin-top:0">Estoy en el domicilio: tomar ubicación GPS</button><div class="st" id="gs">Sin ubicación todavía (obligatoria)</div>
+<div id="ubb"><label>Ubicación del domicilio</label><button class="s" onclick="geo()" id="bg" style="margin-top:0">Estoy en el domicilio: tomar ubicación GPS</button><div class="st" id="gs">Sin ubicación todavía (obligatoria)</div>
 <button class="s" onclick="sinGps()" id="bn">No estoy en el domicilio o no hay GPS</button>
 <div id="sgb" hidden>
 <label for="mg">¿Por qué no se toma aquí la ubicación?</label><select id="mg"></select>
 <label for="co">Coordenadas del domicilio (opcional; ej. 19.0414, -98.2063)</label><input id="co" inputmode="decimal" autocomplete="off" placeholder="latitud, longitud">
 <div class="st">Si no las sabe, déjelo vacío: el domicilio se ubicará en el mapa con la dirección. Por eso escriba calle, número, colonia, código postal y localidad completos. No tome el GPS si no está en el domicilio.</div></div>
-<div class="ck" style="margin-top:14px"><input type="checkbox" id="ap"><label for="ap" style="margin:0;color:var(--ink)">Registrar un apoyo entregado</label></div>
+</div>
+<div class="ck" style="margin-top:14px" id="apck"><input type="checkbox" id="ap"><label for="ap" style="margin:0;color:var(--ink)">Registrar un apoyo entregado</label></div>
 <div id="apb" hidden>
-<label for="evt">Apoyo que recibe</label><select id="evt"></select>
-<button class="s" onclick="$('evf').hidden=false;$('evc').scrollIntoView({behavior:'smooth'});$('en').focus()">¿No está en la lista? Darlo de alta</button>
+<div id="evs"><label for="evt">Apoyo que recibe</label><select id="evt"></select>
+<button class="s" onclick="$('evf').hidden=false;$('evc').scrollIntoView({behavior:'smooth'});$('en').focus()">¿No está en la lista? Darlo de alta</button></div>
 <div class="st" id="evd">Los apoyos los dan de alta las áreas del ayuntamiento. Si no aparece, avise a su administrador.</div>
 <div id="mob" hidden><label for="mo">Monto entregado ($)</label><input id="mo" type="number" inputmode="decimal" min="0"></div>
 <label>Foto del apoyo entregado</label><input id="fa" type="file" accept="image/*" capture="environment"></div>
@@ -110,7 +120,7 @@ function msg(t,c){const m=$("m");m.className=c||"";m.textContent=t;if(t)window.s
 const DEMO=API.startsWith("PEGUE");
 if(DEMO){const d=document.createElement("div");d.className="c";d.style.cssText="border-color:var(--wn);color:var(--wn)";d.textContent="MODO DEMOSTRACIÓN: use cualquier clave. Los datos no se envían a ningún servidor. Para probar que ya está registrada una persona, escriba el CURP GOMA800101HPLRRN09.";document.querySelector("main").prepend(d)}
 const demoPost=async b=>{await new Promise(r=>setTimeout(r,400));
- if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{aviso:["(Texto de ejemplo) Aquí aparecerá el aviso de privacidad del ayuntamiento, que el administrador escribe en la hoja Catalogos."],evento:[{id:"E1",n:"Despensa bimestral octubre",programa:"Alimentación",tipo:"Despensa",eje:"Bienestar",area:"DIF municipal",canal:"Entrega en evento",monto:350,fecha:""},{id:"E2",n:"Beca escolar 2026",programa:"Becas",tipo:"Beca",eje:"Educación",area:"Desarrollo Social",canal:"Ventanilla",monto:"",fecha:""}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
+ if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{aviso:["(Texto de ejemplo) Aquí aparecerá el aviso de privacidad del ayuntamiento, que el administrador escribe en la hoja Catalogos."],evento:[{id:"E1",n:"Despensa bimestral octubre",lugar:"Explanada del ayuntamiento",ldir:"Portal Hidalgo 1, Centro",llat:19.0414,llng:-98.2063,loc:"Centro",programa:"Alimentación",tipo:"Despensa",eje:"Bienestar",area:"DIF municipal",canal:"Entrega en evento",monto:350,fecha:""},{id:"E2",n:"Beca escolar 2026",programa:"Becas",tipo:"Beca",eje:"Educación",area:"Desarrollo Social",canal:"Ventanilla",monto:"",fecha:""}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
  if(b.a==="buscar")return b.curp==="GOMA800101HPLRRN09"?{ok:true,existe:true,nombre:"Ana Gómez Martínez"}:{ok:true,existe:false};
  return{ok:true}};
 const post=async b=>DEMO?demoPost(b):(await fetch(API,{method:"POST",body:JSON.stringify(b)})).json();
@@ -170,7 +180,7 @@ async function entrar(){const k=$("k").value.trim().toUpperCase();if(!k)return;
 function mostrar(){$("login").hidden=true;$("app").hidden=false;$("quien").textContent=S.nombre;$("mun").textContent=S.mun;document.title="Padrón · "+S.mun;
  const av=(S.cat.aviso||[]).join("\n\n");$("avx").textContent=av;$("avt").hidden=!av;
  $("dl-loc").innerHTML=opts(S.cat.localidad).replace('<option value=""></option>',"");
- pintaEv();
+ pintaEv();MO=S.modo?evLista().find(e=>e.id===S.modo)||null:null;aplicaModo();
  $("mg").innerHTML=opts(MOTIVOS,"Elija el motivo");$("sx").innerHTML=opts(SEXOS,"Elija");
  $("gr").innerHTML=(S.cat.grupo||[]).map((g,i)=>`<div class="ck"><input type="checkbox" id="g${i}" value="${esc(g)}"><label for="g${i}" style="margin:0;color:var(--ink)">${esc(g)}</label></div>`).join("");
  $("nac").max=hoy();persistir().then(pinta);pinta();sync()}
@@ -180,24 +190,41 @@ async function refrescar(){try{if(!navigator.onLine||!S)return;const x=await pos
 const sinMonto=e=>e.monto===""||e.monto==null;
 const evLista=()=>[...(S.cat.evento||[]),...(S.evl||[])];
 const evDesc=e=>[e.periodo,e.area,e.tipo,e.canal,sinMonto(e)?"monto variable":"$"+e.monto,e.fecha?String(e.fecha).slice(0,10):""].filter(x=>x!==""&&x!=null).join(" · ");
-function pintaEv(){const l=evLista(),v=$("evt").value;
+function pintaEv(){const l=evLista(),v=$("evt").value,vm=$("emd").value;
  $("evt").innerHTML='<option value="">Elija el apoyo</option>'+l.map(e=>`<option value="${esc(e.id)}">${esc(e.n)}</option>`).join("");$("evt").value=v;
+ $("emd").innerHTML='<option value="">Elija el evento o apoyo</option>'+l.map(e=>`<option value="${esc(e.id)}">${esc(e.n)}</option>`).join("");$("emd").value=MO?MO.id:vm;
  $("eb0").innerHTML='<option value="">No, es un apoyo nuevo</option>'+l.map(e=>`<option value="${esc(e.id)}">${esc(e.n)}</option>`).join("");
  $("evn").textContent=l.length?l.length+" apoyo(s) disponibles para elegir.":"Aún no hay apoyos. Dé de alta el primero.";
  [["ep","programa"],["et","tipo"],["ee","eje"],["ea","area"],["ec","canal"]].forEach(([i,k])=>$("dl-"+i).innerHTML=[...new Set(l.map(e=>e[k]).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join(""))}
 /* Apoyos periódicos: la nueva entrega hereda los datos y el nombre del apoyo original (base) y solo cambia periodo y fecha. */
 const raiz=e=>{const b=e&&e.base&&evLista().find(x=>x.id===e.base);return b||(e&&e.base?Object.assign({},e,{id:e.base,n:String(e.n).split(" · ")[0]}):e)};
+/* ---- Modo evento: se fijan apoyo, lugar, fecha, monto y localidad; por cada persona solo se piden sus datos. ---- */
+let MO=null;
+function entraEv(id){const e=evLista().find(x=>x.id===id);if(!e)return msg("Elija primero el evento o apoyo.","e");MO=e;S.modo=e.id;put("meta",S,"s").catch(()=>{});aplicaModo();
+ msg("Capturando beneficiarios de «"+e.n+"».","o");$("mb").scrollIntoView({behavior:"smooth"});$("curp").focus()}
+function saleEv(){MO=null;if(S){delete S.modo;put("meta",S,"s").catch(()=>{})}aplicaModo();msg("")}
+function aplicaModo(){const e=MO;$("mb").hidden=!e;$("ubb").hidden=!!(e&&e.lugar);$("apck").hidden=!!e;$("evs").hidden=!!e;
+ if(e){$("mbn").textContent="Evento: "+e.n;$("mbd").textContent=[e.lugar?"Lugar: "+e.lugar:"Entrega en domicilio",e.fecha?"Fecha: "+String(e.fecha).slice(0,10):"",sinMonto(e)?"Monto: se escribe por persona":"Monto: $"+e.monto].filter(Boolean).join(" · ");
+  $("ap").checked=true;$("apb").hidden=false;$("evt").value=e.id;$("evt").onchange();if(e.loc&&!$("loc").value)$("loc").value=e.loc;
+  if(e.lugar){GP=null;$("sgb").hidden=true;$("gs").textContent="Sin ubicación todavía (obligatoria)"}}
+ else{$("ap").checked=false;$("apb").hidden=true;$("evt").value="";$("evt").onchange()}}
 function baseSel(){const e=evLista().find(x=>x.id===$("eb0").value);$("epb").hidden=!e;$("enb").hidden=!!e;$("epe").value="";$("ef").value="";
- if(e){const r=raiz(e);[["ep","programa"],["et","tipo"],["ee","eje"],["ea","area"],["ec","canal"],["em","monto"]].forEach(([i,k])=>$(i).value=e[k]??"");$("en").value=r.nr||r.n;$("epe").focus()}else $("en").value=""}
+ if(e){const r=raiz(e);[["ep","programa"],["et","tipo"],["ee","eje"],["ea","area"],["ec","canal"],["em","monto"],["el","lugar"],["eld","ldir"],["elo","loc"]].forEach(([i,k])=>$(i).value=e[k]??"");GE=e.llat!==""&&e.llat!=null?{lat:+e.llat,lng:+e.llng}:null;$("egs").textContent=GE?"Ubicación del lugar copiada del apoyo anterior":"Sin ubicación del lugar";$("en").value=r.nr||r.n;$("epe").focus()}else $("en").value=""}
+let GE=null;
+function geoEv(){$("egs").textContent="Buscando señal GPS…";navigator.geolocation.getCurrentPosition(p=>{GE={lat:p.coords.latitude,lng:p.coords.longitude};$("egs").textContent=`Ubicación del lugar tomada (±${Math.round(p.coords.accuracy)} m)`;$("elc").value=""},
+ ()=>{$("egs").textContent="No se pudo tomar el GPS. Escriba la dirección o las coordenadas del lugar."},{enableHighAccuracy:true,timeout:20000,maximumAge:0})}
+const coords=t=>{const z=String(t||"").replace(/[^\d.,\-\s]/g,"").split(/[,\s]+/).filter(Boolean).map(Number);return z.length===2&&z[0]>=14&&z[0]<=33&&z[1]>=-118.5&&z[1]<=-86?z:null};
 async function altaEv(){const b=evLista().find(x=>x.id===$("eb0").value),r=raiz(b),pe=$("epe").value.trim(),mo=$("em").value;
+ const lc=$("elc").value.trim(),lz=lc?coords(lc):null;if(lc&&!lz)return msg("Las coordenadas del lugar no parecen de México. Escríbalas como 19.0414, -98.2063.","e");
+ const LU=lz?{lat:lz[0],lng:lz[1]}:GE;
  if(b&&!pe&&!$("ef").value)return msg("Escriba el periodo o la fecha de esta entrega.","e");
  const n=b?(r.nr||r.n)+" · "+(pe||$("ef").value):$("en").value.trim();
  if(!n)return msg("Escriba el nombre del apoyo o evento.","e");
  if(evLista().some(e=>String(e.n).toLowerCase()===n.toLowerCase()))return msg("Ya existe un apoyo con ese nombre. Elíjalo de la lista o use otro nombre.","e");
- const ev={id:"EV-"+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,5).toUpperCase(),n,programa:$("ep").value.trim(),tipo:$("et").value.trim(),eje:$("ee").value.trim(),area:$("ea").value.trim(),canal:$("ec").value.trim(),monto:mo===""?"":+mo,fecha:$("ef").value,base:b?(r.base||r.id):"",periodo:b?(pe||$("ef").value):"",nr:b?(r.nr||r.n):""};
+ const ev={id:"EV-"+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,5).toUpperCase(),n,programa:$("ep").value.trim(),tipo:$("et").value.trim(),eje:$("ee").value.trim(),area:$("ea").value.trim(),canal:$("ec").value.trim(),monto:mo===""?"":+mo,fecha:$("ef").value,base:b?(r.base||r.id):"",periodo:b?(pe||$("ef").value):"",nr:b?(r.nr||r.n):"",lugar:$("el").value.trim(),ldir:$("eld").value.trim(),llat:LU?LU.lat:"",llng:LU?LU.lng:"",loc:$("elo").value.trim()};
  $("eb").disabled=true;
  try{S.evl=[...(S.evl||[]),ev];await put("meta",S,"s");await put("cola",{id:ev.id,ts:Date.now(),tipoReg:"evento",nombre:"Apoyo: "+n,ev});
- ["en","ep","et","ee","ea","ec","em","ef","epe","eb0"].forEach(i=>$(i).value="");$("epb").hidden=true;$("enb").hidden=false;$("evf").hidden=true;pintaEv();msg("Apoyo «"+n+"» guardado. Ya aparece en la lista.","o");await pinta();sync()}
+ ["en","ep","et","ee","ea","ec","em","ef","epe","eb0","el","eld","elc","elo"].forEach(i=>$(i).value="");GE=null;$("egs").textContent="Sin ubicación del lugar (si no la toma, se ubica con la dirección)";$("epb").hidden=true;$("enb").hidden=false;$("evf").hidden=true;pintaEv();$("emd").value=ev.id;msg("Apoyo «"+n+"» guardado. Para registrar a sus beneficiarios toque «Entrar al evento».","o");$("evc").scrollIntoView({behavior:"smooth"});await pinta();sync()}
  catch(e){msg("No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.","e")}
  finally{$("eb").disabled=false}}
 function geo(){$("gs").textContent="Buscando señal GPS…";navigator.geolocation.getCurrentPosition(p=>{GP={lat:p.coords.latitude,lng:p.coords.longitude};$("gs").textContent=`Ubicación tomada (precisión ±${Math.round(p.coords.accuracy)} m)`;$("sgb").hidden=true;$("mg").value=""},
@@ -213,13 +240,13 @@ async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX|
  if(!nom)return msg("Escriba el nombre completo.","e");
  const nac=$("nac").value,sx=$("sx").value;
  if(!EX){if(!nac)return msg("Falta la fecha de nacimiento.","e");if(nac>hoy()||nac<"1900-01-01")return msg("La fecha de nacimiento no es válida.","e");if(!sx)return msg("Falta elegir el sexo.","e")}
- const mg=GP?"":$("mg").value;
+ const FL=!!(MO&&MO.lugar),mg=GP?"":FL?MOTIVOS[0]:$("mg").value;
  if(!GP&&!mg)return msg("Falta la ubicación del domicilio. Toque «Tomar mi ubicación actual» o, si no se puede, «No puedo tomar la ubicación» y elija el motivo.","e");
  if(mg.startsWith("Otro")&&!$("no").value.trim())return msg("Si el motivo es «Otro», explíquelo en Notas.","e");
- let cm=null;const ct=GP?"":$("co").value.trim();
+ let cm=null;const ct=GP||FL?"":$("co").value.trim();
  if(ct){const z=ct.replace(/[^\d.,\-\s]/g,"").split(/[,\s]+/).filter(Boolean).map(Number);
   if(z.length!==2||!(z[0]>=14&&z[0]<=33&&z[1]>=-118.5&&z[1]<=-86))return msg("Las coordenadas no parecen de México. Escríbalas como 19.0414, -98.2063 o deje vacío.","e");cm=z}
- if(!GP&&!cm&&!EX&&!$("dir").value.trim()&&!$("col").value.trim())return msg("Sin GPS ni coordenadas, escriba el domicilio completo para ubicarlo en el mapa.","e");
+ if(!FL&&!GP&&!cm&&!EX&&!$("dir").value.trim()&&!$("col").value.trim())return msg("Sin GPS ni coordenadas, escriba el domicilio completo para ubicarlo en el mapa.","e");
  if(!$("av").checked)return msg("Confirme que informó el aviso de privacidad.","e");
  const ap=$("ap").checked;if(EX&&!ap)return msg("Esta persona ya está registrada: registre el apoyo nuevo.","e");
  const ev=ap?evSel():null;if(ap&&!ev)return msg("Elija el apoyo que recibe la persona.","e");
@@ -233,7 +260,7 @@ async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX|
  if(ev)Object.assign(r,{evento:ev.id,ev,programa:ev.programa||ev.n,monto:sinMonto(ev)?+$("mo").value:ev.monto,fotoApoyo:await comp($("fa").files[0])});
  await put("cola",r);
  ["curp","nom","nac","sx","loc","tel","mail","dir","col","cp","no","mo","evt","fb","fi","fr","fa","co"].forEach(i=>$(i).value="");$("mob").hidden=true;$("evd").textContent="";$("dc").textContent="";$("ap").checked=false;$("apb").hidden=true;$("av").checked=false;GP=null;$("gs").textContent="Sin ubicación todavía (obligatoria)";$("sgb").hidden=true;$("mg").value="";quitaEx();
- document.querySelectorAll("#gr input").forEach(i=>i.checked=false);msg("Registro guardado en este teléfono.","o");await pinta();sync()}
+ document.querySelectorAll("#gr input").forEach(i=>i.checked=false);if(MO)aplicaModo();msg("Registro guardado en este teléfono."+(MO?" Siga con la siguiente persona.":""),"o");if(MO)$("curp").focus();await pinta();sync()}
  catch(e){msg("No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.","e")}
  finally{$("bs").disabled=false}}
 
