@@ -5,7 +5,7 @@ Todo es gratis y queda en tu cuenta de Google. NO está probado con datos reales
 
 ## Dónde se guardan los datos
 - **Cada ayuntamiento tiene su propia hoja de Google** ("Padrón Único") con su propio servidor (Code.gs). Ahí quedan todos sus datos: hojas Padron (personas), Apoyos (entregas), Capturas (historial de todo lo que llegó), Eventos (apoyos que dan de alta las áreas), Claves y Catalogos. Las fotos van a la carpeta privada "Padron-fotos" del Drive de la cuenta que instaló.
-- Las hojas se crean en el Drive de quien administra (una por ayuntamiento). El ayuntamiento sigue siendo el responsable de los datos personales: hace falta su aviso de privacidad y un acuerdo por escrito sobre quién recibe y resguarda los datos.
+- Las hojas se crean en el Drive de quien administra (una copia por ayuntamiento; ver *Nuevo ayuntamiento*). El ayuntamiento sigue siendo el responsable de los datos personales: hace falta su aviso de privacidad y un acuerdo por escrito sobre quién recibe y resguarda los datos.
 - **Muchos capturistas por ayuntamiento**: cada uno con su clave (menú Padrón → 2). Todos envían al mismo servidor; si llegan varios a la vez, el servidor los atiende en fila y la app reintenta sola lo que no entró. Nada se pierde: queda en el teléfono hasta que el servidor confirma.
 - **Una sola app para todos los ayuntamientos**: se publica una vez (GitHub Pages) y a cada ayuntamiento se le da su enlace: `https://…/index.html?srv=URL_DE_SU_SERVIDOR` (la URL que termina en `/exec`). El teléfono la recuerda. Solo acepta direcciones de Google Apps Script.
 - **Límites**: Google limita el tamaño de una hoja de cálculo (10 millones de celdas) y el uso diario de Apps Script en cuentas gratuitas. Para un ayuntamiento alcanza para decenas de miles de registros; verifica los límites vigentes en la página de cuotas de Google Apps Script. Si un ayuntamiento crece mucho, se le crea una hoja nueva por año.
@@ -14,7 +14,7 @@ Todo es gratis y queda en tu cuenta de Google. NO está probado con datos reales
 Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento y sexo** (obligatorios). Si se escribe un CURP válido, la app los sugiere a partir del CURP; el capturista los revisa con la credencial. El servidor los guarda en las columnas nuevas `nacimiento` y `sexo` de Capturas y Padron (se crean solas). (2) **El nombre ya no se usa para unir ni comparar registros.** El único identificador es el CURP. Sin CURP = siempre registro nuevo con folio `SC-`. Con CURP = solo se une a ese mismo CURP. (3) "Revisar" queda solo para apoyo repetido. Los archivos `_v4` y anteriores quedan obsoletos.
 
 ## Menú Padrón (en la hoja)
-1. Instalar (una sola vez) · 2. Nueva clave de capturista · 3. Importar histórico (hoja Importar) · 4. Claves en lote: crea la hoja **NuevasClaves**; escribe nombre y municipio de cada capturista, vuelve a correrlo y aparecen las claves en la columna C para imprimir (bórralas después de entregar) · 5. Actualizar Avance: hoja **Avance** con personas, apoyos y montos por municipio, registros por capturista y por día, para el informe.
+1. Instalar (una sola vez) · 2. Nueva clave de capturista · 3. Importar histórico (hoja Importar) · 4. Claves en lote: crea la hoja **NuevasClaves**; escribe nombre y municipio de cada capturista, vuelve a correrlo y aparecen las claves en la columna C para imprimir (bórralas después de entregar) · 5. Actualizar Avance: hoja **Avance** con personas, apoyos y montos, personas que recibieron apoyos de 2 o más áreas en el año, y registros por capturista y por día. Se actualiza sola cada madrugada; este menú la actualiza al momento.
 
 ## Instructivo para capturistas (imprimir y entregar)
 1. Abra en el celular el enlace que le dieron (Chrome en Android, Safari en iPhone). Menú del navegador → *Agregar a pantalla de inicio*.
@@ -28,7 +28,24 @@ Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento 
 9. **Al final del día, con señal**: toque *Enviar pendientes ahora* hasta que diga *Todo enviado*. No cierre sesión con pendientes.
 10. Un dato mal capturado no lo puede corregir usted: avise a su administrador con el nombre y qué está mal.
 
-## Instalación (unos 20 minutos)
+## Nuevo ayuntamiento en 15 minutos (una copia por ayuntamiento)
+Cada ayuntamiento recibe **su propia copia**: su hoja, su servidor, sus claves, su carpeta de fotos y su enlace. Nada en la app ni en su hoja menciona a otros ayuntamientos.
+
+**Una sola vez: la plantilla.** Crea una hoja vacía llamada "Plantilla Padrón", ve a Extensiones → Apps Script, pega `Code.gs` y guarda. No captures nada en la plantilla. GitHub Pages tiene que estar activo (Settings → Pages → rama `main`, carpeta `/ (root)`). En una cuenta gratuita, el repositorio debe ser público; el código no contiene datos.
+
+**Por cada ayuntamiento:**
+1. Plantilla → **Archivo → Hacer una copia** → nómbrala "Padrón de beneficiarios · NOMBRE DEL AYUNTAMIENTO".
+2. Abre la copia, recárgala y entra al menú **Padrón → 1. Instalar**. Escribe el nombre del ayuntamiento tal como lo verán los capturistas. Acepta los permisos: Google avisará que la app no está verificada porque es tu propio script; elige *Avanzado → Continuar*. Instalar detecta que es una copia y crea claves y una carpeta de fotos propias. Además deja programada la actualización diaria de **Avance**.
+3. Extensiones → Apps Script → **Implementar → Nueva implementación → Aplicación web**. *Ejecutar como*: **Yo**. *Quién tiene acceso*: **Cualquier persona**. Copia la URL que termina en `/exec`.
+4. Arma el enlace del ayuntamiento: `https://centrodeingenieriademocratica-arch.github.io/padron-captura/?srv=` + esa URL. Ábrelo en tu celular: arriba debe aparecer "Padrón de beneficiarios · NOMBRE".
+5. En **Catalogos** (columna municipio = `*`) escribe sus localidades (tipo `localidad`), sus grupos (tipo `grupo`) y el **aviso de privacidad del ayuntamiento** (tipo `aviso`, el texto completo en la columna valor). La app lo muestra antes de guardar.
+6. **Claves**: menú **Padrón → 4. Claves en lote**. Escribe un nombre por fila, vuelve a correrlo, imprime las claves y bórralas de la hoja después de entregarlas.
+7. **Que el ayuntamiento vea su padrón**: botón **Compartir** de su copia → correo de su enlace o administrador → *Lector* (o *Editor*, solo para quien corrige datos). Esa hoja es su padrón integral: Padron (personas), Apoyos (todas las entregas de todas las áreas), Eventos, Avance. Se descarga a Excel con Archivo → Descargar.
+8. Entrega el enlace, las claves y el *Instructivo para capturistas*.
+
+**Para que parezca solo de ellos y no se acabe el espacio**, lo recomendable es crear una **cuenta de Google gratuita por ayuntamiento** (ej. padron.nombredelmunicipio@gmail.com), hacer ahí su copia y compartirla con tu cuenta principal como Editor. Así cada ayuntamiento tiene sus 15 GB y sus propios límites de uso de Google, y el dueño que se ve es esa cuenta. Si usas tu misma cuenta para varios ayuntamientos, el espacio y los límites diarios de Google se reparten entre todos.
+
+## Instalación (detalle técnico)
 
 **A. Servidor**
 1. En Google Drive crea una **Hoja de cálculo** nueva. Nómbrala "Padrón Único".
@@ -46,8 +63,8 @@ Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento 
 8. En el celular abre el enlace en Chrome y elige **Instalar app / Añadir a pantalla de inicio**. Abre la app una vez con señal: así queda guardada para usarse sin conexión.
 
 **C. Claves de capturista**
-9. Menú **Padrón → 2. Nueva clave de capturista**. Escribe nombre y municipio. La clave se muestra **una sola vez**; entrégala en persona. Para darla de baja escribe `NO` en la columna *activa* de la hoja **Claves**.
-10. El municipio de cada capturista lo fijas tú aquí; el capturista no puede elegirlo.
+9. Menú **Padrón → 2. Nueva clave de capturista** (o 4, en lote). Escribe el nombre; el municipio es el del ayuntamiento de esta copia. La clave se muestra **una sola vez**; entrégala en persona. Para darla de baja escribe `NO` en la columna *activa* de la hoja **Claves**.
+10. El capturista no puede elegir el municipio: es siempre el de esta copia.
 
 ## Uso diario
 - **Capturista**: entra con su clave (con señal, solo la primera vez), llena el registro y toca *Guardar*. El CURP puede ir vacío. Si no hay señal queda en el teléfono y se envía solo al volver la conexión, o con el botón *Enviar pendientes ahora*.
