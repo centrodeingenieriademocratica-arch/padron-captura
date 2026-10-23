@@ -4,8 +4,8 @@
    (columnas nuevas "nacimiento" y "sexo" al final de Capturas y de Padron; se crean solas);
    (2) el NOMBRE ya no se usa para unir ni comparar registros: el único identificador es el CURP.
    Sin CURP = siempre registro nuevo con folio SC-. Con CURP = se une solo a ese mismo CURP.
-   "Revisar" queda solo para apoyo repetido (misma clave, programa y año). NO PROBADO. */
-   v6 (NO PROBADO): hoja Eventos (las áreas definen cada apoyo; el capturista solo lo elige); colonia, CP, correo e INE reverso.
+   "Revisar" queda solo para apoyo repetido (misma clave, programa y año). NO PROBADO.
+   v6 (NO PROBADO): hoja Eventos (las áreas definen cada apoyo; el capturista solo lo elige); colonia, CP, correo e INE reverso. */
 const COLS={
  Claves:["id","nombre","municipio","hash","activa"],
  Catalogos:["municipio","tipo","valor"],
