@@ -11,7 +11,9 @@ Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento 
 1. En Google Drive crea una **Hoja de cálculo** nueva. Nómbrala "Padrón Único".
 2. Menú **Extensiones → Apps Script**. Borra el contenido y pega todo `Code.gs`. Guarda.
 3. Vuelve a la hoja y recárgala. Aparece el menú **Padrón**. Elige **1. Instalar (una sola vez)** y acepta los permisos (Google avisará que la app no está verificada: es tu propio script; elige "Avanzado → Continuar").
-4. En la hoja **Catalogos** los trabajadores del ayuntamiento escriben las opciones que verá el capturista. Columnas: municipio, tipo (`programa`, `eje`, `area`, `localidad`, `grupo`) y valor. Con `*` en municipio aplica a todos.
+4. En la hoja **Catalogos** los trabajadores del ayuntamiento escriben localidades y grupos. Columnas: municipio, tipo (`localidad` o `grupo`) y valor. Con `*` en municipio aplica a todos.
+   - En la hoja **Eventos** cada área da de alta, una sola vez, cada apoyo que va a entregar: id (único, ej. `DIF-001`), municipio (o `*`), nombre que verá el capturista, programa, tipo de apoyo, eje, área, canal de atención, monto, fecha y activo (`SI`/`NO`). Monto vacío = el capturista escribe el monto. Fecha vacía = se usa el día de la captura. Para dejar de ofrecerlo, escriba `NO` en activo. El capturista solo elige el nombre; el servidor copia los demás datos desde esta hoja.
+   - En una hoja instalada con una versión anterior, crea la hoja **Eventos** con esas columnas en la fila 1 (o vuelve a correr *Instalar*). Los `programa`, `eje` y `area` de Catalogos ya no se usan.
 5. En Apps Script: **Implementar → Nueva implementación → Aplicación web**. *Ejecutar como*: **Yo**. *Quién tiene acceso*: **Cualquier persona**. Copia la **URL** que termina en `/exec`.
    - Si cambias el código después, usa **Implementar → Administrar implementaciones → editar → Nueva versión**, para conservar la misma URL. En una hoja ya instalada no hace falta repetir "Instalar": las columnas `nacimiento` y `sexo` se crean solas al primer guardado.
 
@@ -29,7 +31,8 @@ Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento 
 - **Fecha de nacimiento y sexo**: obligatorios para una persona nueva. Si el CURP está escrito, la app los llena sola (solo si están vacíos) y muestra un aviso; compárelos con la credencial. Sin CURP se capturan a mano.
 - **Ubicación**: toca *Tomar mi ubicación actual*, al aire libre. Solo si no se logra, toca *No puedo tomar la ubicación* y elige el motivo (GPS sin señal o no funciona; la persona no permitió; domicilio de difícil acceso; otro). Con "Otro" hay que explicar en Notas. Sin ubicación ni motivo la app no deja guardar.
 - **Aviso de privacidad**: antes de guardar, marcar la casilla "Le informé a la persona el aviso de privacidad". El texto del aviso y el responsable de datos los defines tú (pendiente).
-- **Al escribir un CURP completo** (con señal): si esa persona ya está registrada en su municipio, la app muestra "Ya registrado: NOMBRE" y oculta los datos personales (incluidos nacimiento y sexo). Solo se captura ubicación, apoyo nuevo (programa y monto son obligatorios) y notas. Si no es la persona, toque "No es esta persona" y corrija el CURP. Sin señal no puede saberlo: captura normal y el servidor lo une al registro de ese mismo CURP.
+- **Al escribir un CURP completo** (con señal): si esa persona ya está registrada en su municipio, la app muestra "Ya registrado: NOMBRE" y oculta los datos personales (incluidos nacimiento y sexo). Solo se captura ubicación, apoyo nuevo (elegido de la lista de apoyos; monto solo si el apoyo lo pide) y notas. Si no es la persona, toque "No es esta persona" y corrija el CURP. Sin señal no puede saberlo: captura normal y el servidor lo une al registro de ese mismo CURP.
+- **Datos de la persona**: nombre, nacimiento, sexo, localidad, teléfono y correo (opcionales), domicilio, colonia, código postal, grupos, foto, y foto de la INE por frente y reverso (opcionales).
 - **Sin CURP**: cada captura crea un registro nuevo con folio `SC-`, aunque el nombre ya exista. Dos personas pueden llamarse igual; por eso el nombre nunca une registros.
 - **Fin del día**: el capturista debe tocar *Enviar pendientes ahora* con señal antes de terminar. La app avisa si hay pendientes y si alguno lleva más de un día sin enviarse.
 - **Administrador**: las capturas llegan a la hoja **Capturas** y se procesan solas hacia **Padron** y **Apoyos** (fotos en la carpeta privada "Padron-fotos" de tu Drive). No hay aprobación manual.
@@ -74,7 +77,7 @@ Al fotografiar el frente de la credencial, el teléfono lee el texto con Tessera
 4. Intenta guardar una persona nueva sin fecha de nacimiento o sin sexo: debe negarse.
 5. Guarda un registro **sin CURP**: debe llegar como *Incompleta* con folio `SC-`.
 6. Guarda otra vez el mismo nombre sin CURP en el mismo municipio: debe llegar como *Incompleta* con **otro** folio `SC-` (no *Revisar*, no se une).
-7. Repite el mismo CURP con el mismo programa y año: debe marcar *Revisar* en Capturas y "Duplicado probable" en Apoyos.
+7. Repite el mismo CURP con el mismo apoyo de Eventos en el mismo año: debe marcar *Revisar* en Capturas y "Duplicado probable" en Apoyos.
 8. Con señal, escribe el CURP del paso 2: debe salir "Ya registrado" con el nombre y ocultar los datos personales; registra un apoyo de otro programa y debe llegar sin crear persona nueva en Padron.
 9. Provoca un error de servidor (pide al administrador pausar la implementación) y confirma que el registro queda *Pendiente* y no *Rechazado*.
 10. Pon `NO` a la clave y confirma que ya no deja enviar.

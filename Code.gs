@@ -5,12 +5,15 @@
    (2) el NOMBRE ya no se usa para unir ni comparar registros: el único identificador es el CURP.
    Sin CURP = siempre registro nuevo con folio SC-. Con CURP = se une solo a ese mismo CURP.
    "Revisar" queda solo para apoyo repetido (misma clave, programa y año). NO PROBADO. */
+   v6 (NO PROBADO): hoja Eventos (las áreas definen cada apoyo; el capturista solo lo elige); colonia, CP, correo e INE reverso.
 const COLS={
  Claves:["id","nombre","municipio","hash","activa"],
  Catalogos:["municipio","tipo","valor"],
- Capturas:["id","ts","capturista","municipio","estado","curp","folio","nombre","localidad","tel","direccion","lat","lng","grupos","programa","eje","area","monto","fecha","fotoBen","fotoApoyo","fotoIne","notas","motivoSinGps","nacimiento","sexo"],
- Padron:["clave","curp","folio","nombre","municipio","localidad","tel","direccion","lat","lng","grupos","primera_captura","estado","nacimiento","sexo"],
- Apoyos:["id","clave","municipio","programa","eje","area","monto","fecha","lat","lng","fotoBen","fotoApoyo","captura","aviso"]
+ Capturas:["id","ts","capturista","municipio","estado","curp","folio","nombre","localidad","tel","direccion","lat","lng","grupos","programa","eje","area","monto","fecha","fotoBen","fotoApoyo","fotoIne","notas","motivoSinGps","nacimiento","sexo","evento","tipo","canal","colonia","cp","correo","fotoIneReverso"],
+ Padron:["clave","curp","folio","nombre","municipio","localidad","tel","direccion","lat","lng","grupos","primera_captura","estado","nacimiento","sexo","colonia","cp","correo"],
+ Apoyos:["id","clave","municipio","programa","eje","area","monto","fecha","lat","lng","fotoBen","fotoApoyo","captura","aviso","evento","tipo","canal"],
+ /* Cada área da de alta aquí sus apoyos; el capturista solo elige el nombre. Monto vacío = lo escribe el capturista. Fecha vacía = día de la captura. */
+ Eventos:["id","municipio","nombre","programa","tipo","eje","area","canal","monto","fecha","activo"]
 };
 /* Deben ser idénticas a las listas de la app. */
 const MOTIVOS=["GPS sin señal o no funciona","La persona no permitió tomar la ubicación","Domicilio de difícil acceso","Otro (explicar en Notas)"];
@@ -28,8 +31,9 @@ function instalar(){
  if(!P_().getProperty("CARPETA"))P_().setProperty("CARPETA",DriveApp.createFolder("Padron-fotos (privada)").getId());
  Object.keys(COLS).forEach(n=>{let s=sh_(n)||SpreadsheetApp.getActive().insertSheet(n);
   if(s.getLastRow()==0){s.appendRow(COLS[n]);s.setFrozenRows(1)}});
- const c=sh_("Catalogos");if(c.getLastRow()==1)c.getRange(2,1,3,3).setValues([["*","grupo","Adulto mayor"],["*","grupo","Persona con discapacidad"],["*","programa","Programa ejemplo (borrar o editar)"]]);
- SpreadsheetApp.getUi().alert("Listo. En la hoja Catalogos escriba programas, ejes, areas, localidades y grupos. Use * en municipio para que aplique a todos.")}
+ const c=sh_("Catalogos");if(c.getLastRow()==1)c.getRange(2,1,3,3).setValues([["*","grupo","Adulto mayor"],["*","grupo","Persona con discapacidad"],["*","localidad","Localidad ejemplo (borrar o editar)"]]);
+ const ev=sh_("Eventos");if(ev.getLastRow()==1)ev.appendRow(["E1","*","Apoyo ejemplo (borrar o editar)","Programa ejemplo","Despensa","","DIF municipal","Visita domiciliaria","","","SI"]);
+ SpreadsheetApp.getUi().alert("Listo. En Catalogos escriba localidades y grupos. En Eventos cada área da de alta sus apoyos (un id distinto por fila). Use * en municipio para que aplique a todos.")}
 
 /* Completa encabezados de columnas nuevas en hojas creadas con versiones anteriores. */
 function cab_(n){const s=sh_(n),c=COLS[n],h=s.getRange(1,1,1,c.length).getValues()[0];
@@ -65,8 +69,11 @@ function buscar_(q,curp){curp=String(curp||"").toUpperCase().trim();
  const f=pd.getRange(2,1,pd.getLastRow()-1,5).getValues().find(x=>x[0]===curp&&x[4]===q.mun);
  return f?{ok:true,existe:true,nombre:String(f[3])}:{ok:true,existe:false}}
 
-function catalogo_(mun){const o={programa:[],eje:[],area:[],localidad:[],grupo:[]},v=sh_("Catalogos").getDataRange().getValues();
- for(let i=1;i<v.length;i++)if((v[i][0]==="*"||v[i][0]===mun)&&o[v[i][1]])o[v[i][1]].push(v[i][2]);return o}
+function catalogo_(mun){const o={localidad:[],grupo:[],evento:[]},v=sh_("Catalogos").getDataRange().getValues();
+ for(let i=1;i<v.length;i++)if((v[i][0]==="*"||v[i][0]===mun)&&o[v[i][1]])o[v[i][1]].push(v[i][2]);
+ eventos_(mun).filter(e=>String(e[10]).toUpperCase()!=="NO").forEach(e=>o.evento.push({id:String(e[0]),n:String(e[2]),
+  d:[e[6],e[4],e[7],e[8]!==""?"$"+e[8]:"monto variable"].filter(String).join(" · "),m:e[8]===""}));return o}
+const eventos_=mun=>{const s=sh_("Eventos");return s&&s.getLastRow()>1?s.getRange(2,1,s.getLastRow()-1,11).getValues().filter(e=>e[0]!==""&&(e[1]==="*"||e[1]===mun)):[]};
 
 function foto_(b64,nombre){if(!b64)return"";const m=String(b64).split(",")[1]||b64;
  return DriveApp.getFolderById(P_().getProperty("CARPETA")).createFile(Utilities.newBlob(Utilities.base64Decode(m),"image/jpeg",nombre+".jpg")).getId()}
@@ -89,12 +96,17 @@ function guardar_(q,r){
  const nac=String(r.nacimiento||"").trim(),sexo=String(r.sexo||"").trim();
  /* Si el CURP ya está en el padrón no se piden otra vez nacimiento ni sexo. */
  if(!(curp&&enPadron_(curp))&&(!nacOk_(nac)||SEXOS.indexOf(sexo)<0))return{ok:false,error:"datos"};
+ let ev=null;if(r.evento){ev=eventos_(q.mun).find(e=>String(e[0])===String(r.evento));if(!ev)return{ok:false,error:"datos"}}
  if(existe_(r.id))return{ok:true,dup:true};
- const ben=foto_(r.fotoBen,r.id+"_ben"),apo=foto_(r.fotoApoyo,r.id+"_apoyo"),ine=foto_(r.fotoIne,r.id+"_ine");
+ const ben=foto_(r.fotoBen,r.id+"_ben"),apo=foto_(r.fotoApoyo,r.id+"_apoyo"),ine=foto_(r.fotoIne,r.id+"_ine"),iner=foto_(r.fotoIneR,r.id+"_ine_reverso");
  const L=LockService.getScriptLock();try{L.waitLock(25000)}catch(e){return{ok:false,error:"ocupado"}}
  try{
  if(existe_(r.id))return{ok:true,dup:true};
- cab_("Capturas");cab_("Padron");
+ cab_("Capturas");cab_("Padron");cab_("Apoyos");
+ /* Los datos del apoyo salen de la hoja Eventos, no del teléfono. */
+ if(ev){r.programa=ev[3]||ev[2];r.tipo=ev[4];r.eje=ev[5];r.area=ev[6];r.canal=ev[7];if(ev[8]!=="")r.monto=ev[8];
+  r.fecha=ev[9]!==""?ev[9]:Utilities.formatDate(new Date(Number(r.ts)||Date.now()),"America/Mexico_City","yyyy-MM-dd")}
+ const ext=[r.colonia||"",r.cp||"",r.correo||""];
  const sc=sh_("Capturas");
  const lat=conGps?r.lat:"",lng=conGps?r.lng:"";
  const mun=q.mun,ts=new Date(),nombre=String(r.nombre).trim(),grupos=(r.grupos||[]).join("; ");
@@ -103,17 +115,17 @@ function guardar_(q,r){
  let clave,folio="",estado=curp?"Completa":"Incompleta";
  if(curp){
   clave=curp;
-  if(claves.indexOf(curp)<0)pd.appendRow([curp,curp,"",nombre,mun,...base,"Completo",nac,sexo]);
+  if(claves.indexOf(curp)<0)pd.appendRow([curp,curp,"",nombre,mun,...base,"Completo",nac,sexo,...ext]);
  }else{
   folio="SC-"+String(r.id).slice(0,8).toUpperCase();clave=folio;
-  if(claves.indexOf(folio)<0)pd.appendRow([folio,null,folio,nombre,mun,...base,"Incompleto",nac,sexo]);
+  if(claves.indexOf(folio)<0)pd.appendRow([folio,null,folio,nombre,mun,...base,"Incompleto",nac,sexo,...ext]);
  }
  if(r.programa){const ap=sh_("Apoyos"),av=ap.getLastRow()>1?ap.getRange(2,2,ap.getLastRow()-1,7).getValues():[];
   const k=clave+"|"+String(r.programa).toLowerCase()+"|"+yr_(r.fecha);let aviso="";
   if(av.some(a=>a[0]+"|"+String(a[2]).toLowerCase()+"|"+yr_(a[6])===k)){aviso="Duplicado probable: mismo programa y año";estado="Revisar"}
-  ap.appendRow([r.id,clave,mun,r.programa,r.eje||"",r.area||"",r.monto||"",r.fecha||"",lat,lng,ben,apo,r.id,aviso])
+  ap.appendRow([r.id,clave,mun,r.programa,r.eje||"",r.area||"",r.monto||"",r.fecha||"",lat,lng,ben,apo,r.id,aviso,r.evento||"",r.tipo||"",r.canal||""])
  }
  sc.appendRow([r.id,ts,q.id,mun,estado,curp,folio,nombre,r.localidad||"",r.tel||"",r.direccion||"",lat,lng,grupos,
-  r.programa||"",r.eje||"",r.area||"",r.monto||"",r.fecha||"",ben,apo,ine,r.notas||"",motivo,nac,sexo]);
+  r.programa||"",r.eje||"",r.area||"",r.monto||"",r.fecha||"",ben,apo,ine,r.notas||"",motivo,nac,sexo,r.evento||"",r.tipo||"",r.canal||"",...ext,iner]);
  return{ok:true}}
  finally{L.releaseLock()}}
