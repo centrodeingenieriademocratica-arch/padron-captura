@@ -29,6 +29,20 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <div class="c"><div class="r"><div><b id="quien"></b><div class="st" id="mun"></div></div></div>
 <div class="st" id="est" style="margin-top:6px"></div>
 <button class="s" onclick="sync(true)">Enviar pendientes ahora</button></div>
+<div class="c" id="evc"><h2>Apoyos y eventos</h2>
+<div class="st" id="evn"></div>
+<button class="s" onclick="$('evf').hidden=!$('evf').hidden">Dar de alta un apoyo o evento</button>
+<div id="evf" hidden>
+<div class="st">Se da de alta una sola vez. Después, al registrar a cada persona, solo se elige de la lista. Funciona sin señal.</div>
+<label for="en">Nombre del apoyo o evento (lo que verá quien captura)</label><input id="en" autocomplete="off">
+<label for="ep">Programa</label><input id="ep" list="dl-ep" autocomplete="off"><datalist id="dl-ep"></datalist>
+<label for="et">Tipo de apoyo</label><input id="et" list="dl-et" autocomplete="off"><datalist id="dl-et"></datalist>
+<label for="ee">Eje</label><input id="ee" list="dl-ee" autocomplete="off"><datalist id="dl-ee"></datalist>
+<label for="ea">Área responsable</label><input id="ea" list="dl-ea" autocomplete="off"><datalist id="dl-ea"></datalist>
+<label for="ec">Canal de atención</label><input id="ec" list="dl-ec" autocomplete="off"><datalist id="dl-ec"></datalist>
+<div class="r"><div><label for="em">Monto por persona ($)</label><input id="em" type="number" inputmode="decimal" min="0"></div><div><label for="ef">Fecha</label><input id="ef" type="date"></div></div>
+<div class="st">Monto vacío: quien captura escribe el monto de cada entrega. Fecha vacía: se usa el día de cada captura.</div>
+<button onclick="altaEv()" id="eb">Guardar apoyo</button></div></div>
 <div class="c"><h1>Nuevo registro</h1>
 <label for="fi">Credencial INE (frente), opcional</label><input id="fi" type="file" accept="image/*" capture="environment" onchange="leerIne()">
 <label for="fr">Credencial INE (reverso), opcional</label><input id="fr" type="file" accept="image/*" capture="environment">
@@ -58,6 +72,7 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <div class="ck" style="margin-top:14px"><input type="checkbox" id="ap"><label for="ap" style="margin:0;color:var(--ink)">Registrar un apoyo entregado</label></div>
 <div id="apb" hidden>
 <label for="evt">Apoyo que recibe</label><select id="evt"></select>
+<button class="s" onclick="$('evf').hidden=false;$('evc').scrollIntoView({behavior:'smooth'});$('en').focus()">¿No está en la lista? Darlo de alta</button>
 <div class="st" id="evd">Los apoyos los dan de alta las áreas del ayuntamiento. Si no aparece, avise a su administrador.</div>
 <div id="mob" hidden><label for="mo">Monto entregado ($)</label><input id="mo" type="number" inputmode="decimal" min="0"></div>
 <label>Foto del apoyo entregado</label><input id="fa" type="file" accept="image/*" capture="environment"></div>
@@ -81,7 +96,7 @@ function msg(t,c){const m=$("m");m.className=c||"";m.textContent=t;if(t)window.s
 const DEMO=API.startsWith("PEGUE");
 if(DEMO){const d=document.createElement("div");d.className="c";d.style.cssText="border-color:var(--wn);color:var(--wn)";d.textContent="MODO DEMOSTRACIÓN: use cualquier clave. Los datos no se envían a ningún servidor. Para probar que ya está registrada una persona, escriba el CURP GOMA800101HPLRRN09.";document.querySelector("main").prepend(d)}
 const demoPost=async b=>{await new Promise(r=>setTimeout(r,400));
- if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{evento:[{id:"E1",n:"Despensa bimestral octubre",d:"DIF municipal · Despensa · $350",m:false},{id:"E2",n:"Beca escolar 2026",d:"Desarrollo Social · Beca · monto variable",m:true}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
+ if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{evento:[{id:"E1",n:"Despensa bimestral octubre",programa:"Alimentación",tipo:"Despensa",eje:"Bienestar",area:"DIF municipal",canal:"Entrega en evento",monto:350,fecha:""},{id:"E2",n:"Beca escolar 2026",programa:"Becas",tipo:"Beca",eje:"Educación",area:"Desarrollo Social",canal:"Ventanilla",monto:"",fecha:""}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
  if(b.a==="buscar")return b.curp==="GOMA800101HPLRRN09"?{ok:true,existe:true,nombre:"Ana Gómez Martínez"}:{ok:true,existe:false};
  return{ok:true}};
 const post=async b=>DEMO?demoPost(b):(await fetch(API,{method:"POST",body:JSON.stringify(b)})).json();
@@ -140,17 +155,35 @@ async function entrar(){const k=$("k").value.trim().toUpperCase();if(!k)return;
  catch(e){msg("No se pudo conectar. Intente de nuevo con señal.","e")}}
 function mostrar(){$("login").hidden=true;$("app").hidden=false;$("quien").textContent=S.nombre;$("mun").textContent=S.mun;
  $("dl-loc").innerHTML=opts(S.cat.localidad).replace('<option value=""></option>',"");
- $("evt").innerHTML='<option value="">Elija el apoyo</option>'+(S.cat.evento||[]).map(e=>`<option value="${esc(e.id)}">${esc(e.n)}</option>`).join("");
+ pintaEv();
  $("mg").innerHTML=opts(MOTIVOS,"Elija el motivo");$("sx").innerHTML=opts(SEXOS,"Elija");
  $("gr").innerHTML=(S.cat.grupo||[]).map((g,i)=>`<div class="ck"><input type="checkbox" id="g${i}" value="${esc(g)}"><label for="g${i}" style="margin:0;color:var(--ink)">${esc(g)}</label></div>`).join("");
  $("nac").max=hoy();persistir().then(pinta);pinta();sync()}
-async function refrescar(){try{if(!navigator.onLine||!S)return;const x=await post({a:"login",clave:S.clave});if(x.ok){S.cat=x.cat;await put("meta",S,"s")}else if(x.error==="clave")msg("Su clave ya no es válida. Pida una nueva.","e")}catch(e){}}
+async function refrescar(){try{if(!navigator.onLine||!S)return;const x=await post({a:"login",clave:S.clave});if(x.ok){S.cat=x.cat;const ya=(x.cat.evento||[]).map(e=>e.id);S.evl=(S.evl||[]).filter(e=>ya.indexOf(e.id)<0);await put("meta",S,"s");pintaEv()}else if(x.error==="clave")msg("Su clave ya no es válida. Pida una nueva.","e")}catch(e){}}
+
+/* ---- Apoyos y eventos: los del servidor más los dados de alta en este teléfono que aún no llegan ---- */
+const sinMonto=e=>e.monto===""||e.monto==null;
+const evLista=()=>[...(S.cat.evento||[]),...(S.evl||[])];
+const evDesc=e=>[e.area,e.tipo,e.canal,sinMonto(e)?"monto variable":"$"+e.monto,e.fecha?String(e.fecha).slice(0,10):""].filter(x=>x!==""&&x!=null).join(" · ");
+function pintaEv(){const l=evLista(),v=$("evt").value;
+ $("evt").innerHTML='<option value="">Elija el apoyo</option>'+l.map(e=>`<option value="${esc(e.id)}">${esc(e.n)}</option>`).join("");$("evt").value=v;
+ $("evn").textContent=l.length?l.length+" apoyo(s) disponibles para elegir.":"Aún no hay apoyos. Dé de alta el primero.";
+ [["ep","programa"],["et","tipo"],["ee","eje"],["ea","area"],["ec","canal"]].forEach(([i,k])=>$("dl-"+i).innerHTML=[...new Set(l.map(e=>e[k]).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join(""))}
+async function altaEv(){const n=$("en").value.trim(),mo=$("em").value;
+ if(!n)return msg("Escriba el nombre del apoyo o evento.","e");
+ if(evLista().some(e=>String(e.n).toLowerCase()===n.toLowerCase()))return msg("Ya existe un apoyo con ese nombre. Elíjalo de la lista o use otro nombre.","e");
+ const ev={id:"EV-"+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,5).toUpperCase(),n,programa:$("ep").value.trim(),tipo:$("et").value.trim(),eje:$("ee").value.trim(),area:$("ea").value.trim(),canal:$("ec").value.trim(),monto:mo===""?"":+mo,fecha:$("ef").value};
+ $("eb").disabled=true;
+ try{S.evl=[...(S.evl||[]),ev];await put("meta",S,"s");await put("cola",{id:ev.id,ts:Date.now(),tipoReg:"evento",nombre:"Apoyo: "+n,ev});
+ ["en","ep","et","ee","ea","ec","em","ef"].forEach(i=>$(i).value="");$("evf").hidden=true;pintaEv();msg("Apoyo «"+n+"» guardado. Ya aparece en la lista.","o");await pinta();sync()}
+ catch(e){msg("No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.","e")}
+ finally{$("eb").disabled=false}}
 function geo(){$("gs").textContent="Buscando señal GPS…";navigator.geolocation.getCurrentPosition(p=>{GP={lat:p.coords.latitude,lng:p.coords.longitude};$("gs").textContent=`Ubicación tomada (precisión ±${Math.round(p.coords.accuracy)} m)`;$("sgb").hidden=true;$("mg").value=""},
  e=>{GP=null;$("gs").textContent="No se pudo tomar la ubicación. Active el GPS y permita el acceso, o toque «No puedo tomar la ubicación».";$("bn").hidden=false},{enableHighAccuracy:true,timeout:25000,maximumAge:0})}
 function sinGps(){if(GP){msg("Ya hay ubicación tomada. No hace falta el motivo.","w");return}$("sgb").hidden=false;$("mg").focus()}
 $("ap").onchange=()=>$("apb").hidden=!$("ap").checked;
-const evSel=()=>(S&&S.cat.evento||[]).find(e=>e.id===$("evt").value);
-$("evt").onchange=()=>{const e=evSel();$("evd").textContent=e?e.d:"";$("mob").hidden=!(e&&e.m);if(!(e&&e.m))$("mo").value=""};
+const evSel=()=>S?evLista().find(e=>e.id===$("evt").value):null;
+$("evt").onchange=()=>{const e=evSel();$("evd").textContent=e?evDesc(e):"";const m=!!e&&sinMonto(e);$("mob").hidden=!m;if(!m)$("mo").value=""};
 
 async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX||$("nom").value.trim();
  if(curp&&!CURP.test(curp))return msg("El CURP no tiene un formato válido. Revise las 18 posiciones o déjelo vacío.","e");
@@ -163,13 +196,14 @@ async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX|
  if(!$("av").checked)return msg("Confirme que informó el aviso de privacidad.","e");
  const ap=$("ap").checked;if(EX&&!ap)return msg("Esta persona ya está registrada: registre el apoyo nuevo.","e");
  const ev=ap?evSel():null;if(ap&&!ev)return msg("Elija el apoyo que recibe la persona.","e");
- if(ev&&ev.m&&!$("mo").value)return msg("Escriba el monto entregado.","e");
+ if(ev&&sinMonto(ev)&&!$("mo").value)return msg("Escriba el monto entregado.","e");
  const cp=EX?"":$("cp").value.trim();if(cp&&!/^\d{5}$/.test(cp))return msg("El código postal lleva 5 números.","e");
  $("bs").disabled=true;
  try{const v=i=>EX?"":$(i).value.trim();
  const r={id:Date.now().toString(36)+Math.random().toString(36).slice(2,8),ts:Date.now(),curp,nombre:nom,nacimiento:EX?"":nac,sexo:EX?"":sx,localidad:v("loc"),tel:v("tel"),direccion:v("dir"),colonia:v("col"),cp,correo:v("mail"),lat:GP?GP.lat:"",lng:GP?GP.lng:"",sinGps:mg,
  grupos:EX?[]:[...document.querySelectorAll("#gr input:checked")].map(i=>i.value),notas:$("no").value.trim(),aviso:true,fotoBen:EX?"":await comp($("fb").files[0]),fotoIne:EX?"":await comp($("fi").files[0]),fotoIneR:EX?"":await comp($("fr").files[0])};
- if(ev)Object.assign(r,{evento:ev.id,programa:ev.n,monto:ev.m?+$("mo").value:"",fotoApoyo:await comp($("fa").files[0])});
+ /* Se manda la definición completa del apoyo: si el servidor aún no lo tiene, lo crea. */
+ if(ev)Object.assign(r,{evento:ev.id,ev,programa:ev.programa||ev.n,monto:sinMonto(ev)?+$("mo").value:ev.monto,fotoApoyo:await comp($("fa").files[0])});
  await put("cola",r);
  ["curp","nom","nac","sx","loc","tel","mail","dir","col","cp","no","mo","evt","fb","fi","fr","fa"].forEach(i=>$(i).value="");$("mob").hidden=true;$("evd").textContent="";$("dc").textContent="";$("ap").checked=false;$("apb").hidden=true;$("av").checked=false;GP=null;$("gs").textContent="Sin ubicación todavía (obligatoria)";$("sgb").hidden=true;$("mg").value="";quitaEx();
  document.querySelectorAll("#gr input").forEach(i=>i.checked=false);msg("Registro guardado en este teléfono.","o");await pinta();sync()}

@@ -5,7 +5,8 @@
    (2) el NOMBRE ya no se usa para unir ni comparar registros: el único identificador es el CURP.
    Sin CURP = siempre registro nuevo con folio SC-. Con CURP = se une solo a ese mismo CURP.
    "Revisar" queda solo para apoyo repetido (misma clave, programa y año). NO PROBADO.
-   v6 (NO PROBADO): hoja Eventos (las áreas definen cada apoyo; el capturista solo lo elige); colonia, CP, correo e INE reverso. */
+   v6 (NO PROBADO): hoja Eventos (las áreas definen cada apoyo; el capturista solo lo elige); colonia, CP, correo e INE reverso.
+   v7 (NO PROBADO): los apoyos también se dan de alta desde la app (funciona sin señal); llegan a Eventos. */
 const COLS={
  Claves:["id","nombre","municipio","hash","activa"],
  Catalogos:["municipio","tipo","valor"],
@@ -13,7 +14,7 @@ const COLS={
  Padron:["clave","curp","folio","nombre","municipio","localidad","tel","direccion","lat","lng","grupos","primera_captura","estado","nacimiento","sexo","colonia","cp","correo"],
  Apoyos:["id","clave","municipio","programa","eje","area","monto","fecha","lat","lng","fotoBen","fotoApoyo","captura","aviso","evento","tipo","canal"],
  /* Cada área da de alta aquí sus apoyos; el capturista solo elige el nombre. Monto vacío = lo escribe el capturista. Fecha vacía = día de la captura. */
- Eventos:["id","municipio","nombre","programa","tipo","eje","area","canal","monto","fecha","activo"]
+ Eventos:["id","municipio","nombre","programa","tipo","eje","area","canal","monto","fecha","activo","creado_por","creado"]
 };
 /* Deben ser idénticas a las listas de la app. */
 const MOTIVOS=["GPS sin señal o no funciona","La persona no permitió tomar la ubicación","Domicilio de difícil acceso","Otro (explicar en Notas)"];
@@ -71,8 +72,16 @@ function buscar_(q,curp){curp=String(curp||"").toUpperCase().trim();
 
 function catalogo_(mun){const o={localidad:[],grupo:[],evento:[]},v=sh_("Catalogos").getDataRange().getValues();
  for(let i=1;i<v.length;i++)if((v[i][0]==="*"||v[i][0]===mun)&&o[v[i][1]])o[v[i][1]].push(v[i][2]);
- eventos_(mun).filter(e=>String(e[10]).toUpperCase()!=="NO").forEach(e=>o.evento.push({id:String(e[0]),n:String(e[2]),
-  d:[e[6],e[4],e[7],e[8]!==""?"$"+e[8]:"monto variable"].filter(String).join(" · "),m:e[8]===""}));return o}
+ eventos_(mun).filter(e=>String(e[10]).toUpperCase()!=="NO").forEach(e=>o.evento.push({id:String(e[0]),n:String(e[2]),programa:String(e[3]),tipo:String(e[4]),
+  eje:String(e[5]),area:String(e[6]),canal:String(e[7]),monto:e[8]===""?"":Number(e[8]),fecha:e[9] instanceof Date?Utilities.formatDate(e[9],"America/Mexico_City","yyyy-MM-dd"):String(e[9])}));return o}
+
+/* Alta de un apoyo desde la app. Si ya existe ese id no hace nada (reenvíos). */
+function crearEv_(q,v){v=v||{};const t=x=>String(x==null?"":x).trim().slice(0,200),id=t(v.id),n=t(v.n),mo=v.monto===""||v.monto==null?"":Number(v.monto),fe=t(v.fecha);
+ if(!/^EV-[A-Z0-9]{4,20}$/.test(id)||!n||(mo!==""&&!(mo>=0))||(fe&&!/^\d{4}-\d{2}-\d{2}$/.test(fe)))return false;
+ const L=LockService.getScriptLock();L.waitLock(25000);
+ try{let s=sh_("Eventos");if(!s){s=SpreadsheetApp.getActive().insertSheet("Eventos");s.appendRow(COLS.Eventos);s.setFrozenRows(1)}cab_("Eventos");
+  if(!eventos_(q.mun).some(e=>String(e[0])===id))s.appendRow([id,q.mun,n,t(v.programa),t(v.tipo),t(v.eje),t(v.area),t(v.canal),mo,fe,"SI",q.id,new Date()]);return true}
+ finally{L.releaseLock()}}
 const eventos_=mun=>{const s=sh_("Eventos");return s&&s.getLastRow()>1?s.getRange(2,1,s.getLastRow()-1,11).getValues().filter(e=>e[0]!==""&&(e[1]==="*"||e[1]===mun)):[]};
 
 function foto_(b64,nombre){if(!b64)return"";const m=String(b64).split(",")[1]||b64;
@@ -89,6 +98,7 @@ function nacOk_(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;
    Completa (con CURP) | Incompleta (sin CURP, folio SC-) | Revisar (apoyo repetido: misma clave, programa y año).
    El nombre NUNCA se usa para unir ni comparar. */
 function guardar_(q,r){
+ if(r.tipoReg==="evento"){try{return crearEv_(q,r.ev)?{ok:true}:{ok:false,error:"datos"}}catch(e){return{ok:false,error:"ocupado"}}}
  const curp=String(r.curp||"").toUpperCase().trim();
  const conGps=!!(r.lat&&r.lng),motivo=conGps?"":String(r.sinGps||"").trim();
  if(!r.id||!r.nombre||!r.aviso||(curp&&!CURP.test(curp)))return{ok:false,error:"datos"};
@@ -96,7 +106,10 @@ function guardar_(q,r){
  const nac=String(r.nacimiento||"").trim(),sexo=String(r.sexo||"").trim();
  /* Si el CURP ya está en el padrón no se piden otra vez nacimiento ni sexo. */
  if(!(curp&&enPadron_(curp))&&(!nacOk_(nac)||SEXOS.indexOf(sexo)<0))return{ok:false,error:"datos"};
- let ev=null;if(r.evento){ev=eventos_(q.mun).find(e=>String(e[0])===String(r.evento));if(!ev)return{ok:false,error:"datos"}}
+ let ev=null;if(r.evento){const b=()=>eventos_(q.mun).find(e=>String(e[0])===String(r.evento));ev=b();
+  /* Apoyo dado de alta en el teléfono que aún no llega: se crea con la definición que trae el registro. */
+  if(!ev&&r.ev&&String(r.ev.id)===String(r.evento)){try{if(crearEv_(q,r.ev))ev=b()}catch(e){return{ok:false,error:"ocupado"}}}
+  if(!ev)return{ok:false,error:"datos"}}
  if(existe_(r.id))return{ok:true,dup:true};
  const ben=foto_(r.fotoBen,r.id+"_ben"),apo=foto_(r.fotoApoyo,r.id+"_apoyo"),ine=foto_(r.fotoIne,r.id+"_ine"),iner=foto_(r.fotoIneR,r.id+"_ine_reverso");
  const L=LockService.getScriptLock();try{L.waitLock(25000)}catch(e){return{ok:false,error:"ocupado"}}
