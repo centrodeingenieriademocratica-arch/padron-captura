@@ -6,6 +6,7 @@
    Sin CURP = siempre registro nuevo con folio SC-. Con CURP = se une solo a ese mismo CURP.
    "Revisar" queda solo para apoyo repetido (misma clave, programa y año). NO PROBADO.
    v6 (NO PROBADO): hoja Eventos (las áreas definen cada apoyo; el capturista solo lo elige); colonia, CP, correo e INE reverso.
+   v8 (NO PROBADO): menú "3. Importar histórico" para pasar listas de Excel al padrón.
    v7 (NO PROBADO): los apoyos también se dan de alta desde la app (funciona sin señal); llegan a Eventos. */
 const COLS={
  Claves:["id","nombre","municipio","hash","activa"],
@@ -25,7 +26,53 @@ const sh_=n=>SpreadsheetApp.getActive().getSheetByName(n);
 const P_=()=>PropertiesService.getScriptProperties();
 
 function onOpen(){SpreadsheetApp.getUi().createMenu("Padrón")
- .addItem("1. Instalar (una sola vez)","instalar").addItem("2. Nueva clave de capturista","nuevaClave").addToUi()}
+ .addItem("1. Instalar (una sola vez)","instalar").addItem("2. Nueva clave de capturista","nuevaClave").addItem("3. Importar histórico (hoja Importar)","importar").addToUi()}
+
+/* ---- Importar beneficiarios históricos desde Excel ----
+   El administrador importa su Excel a una hoja llamada "Importar" (Archivo → Importar). Fila 1 = encabezados.
+   Encabezados que se reconocen (sin importar mayúsculas ni acentos): curp, nombre, nacimiento, sexo, localidad, telefono,
+   correo, direccion, colonia, cp, grupos, programa, tipo, eje, area, canal, monto, fecha.
+   Se une solo por CURP; sin CURP, cada fila es una persona nueva con folio SC-. Escribe el resultado de cada fila en la
+   columna "resultado"; las filas con resultado no se vuelven a procesar, así que se puede correr varias veces. */
+const IMP_=["curp","nombre","nacimiento","sexo","localidad","telefono","correo","direccion","colonia","cp","grupos","programa","tipo","eje","area","canal","monto","fecha"];
+const norm_=x=>String(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z]/g,"");
+const fec_=x=>x instanceof Date?Utilities.formatDate(x,"America/Mexico_City","yyyy-MM-dd"):String(x||"").trim();
+/* Fecha y sexo desde el CURP: posiciones 5-10 (AAMMDD) y 11 (H/M). El dígito 17 distingue siglo: número = 1900, letra = 2000. */
+function deCurp_(c){const a=+c.slice(4,6),s=/\d/.test(c[16])?1900:2000;return{nac:(s+a)+"-"+c.slice(6,8)+"-"+c.slice(8,10),sexo:c[10]==="H"?"Hombre":"Mujer"}}
+function importar(){const u=SpreadsheetApp.getUi(),im=sh_("Importar");
+ if(!im||im.getLastRow()<2)return u.alert("Primero importe su Excel a una hoja llamada Importar (Archivo → Importar → Insertar hojas nuevas, y renómbrela Importar). Fila 1 = encabezados.");
+ const m=u.prompt("Municipio de esta lista (escríbalo igual que en las claves)");if(m.getSelectedButton()!=u.Button.OK)return;const mun=m.getResponseText().trim();if(!mun)return;
+ Object.keys(COLS).forEach(n=>{if(!sh_(n))SpreadsheetApp.getActive().insertSheet(n).appendRow(COLS[n])});cab_("Padron");cab_("Apoyos");
+ const AL={nombrecompleto:"nombre",fechadenacimiento:"nacimiento",domicilio:"direccion",calle:"direccion",codigopostal:"cp",tel:"telefono",celular:"telefono",email:"correo",correoelectronico:"correo",tipodeapoyo:"tipo",apoyo:"tipo",importe:"monto",fechadeentrega:"fecha"};
+ const v=im.getDataRange().getValues(),h=v[0].map(x=>AL[norm_(x)]||norm_(x)),col={};IMP_.forEach(k=>col[k]=h.indexOf(k));
+ if(col.nombre<0)return u.alert("Falta la columna nombre en la fila 1 de Importar.");
+ let rc=h.indexOf("resultado");if(rc<0){rc=h.length;im.getRange(1,rc+1).setValue("resultado")}
+ const L=LockService.getScriptLock();L.waitLock(30000);
+ try{const pd=sh_("Padron"),ap=sh_("Apoyos"),ya=new Set(pd.getLastRow()>1?pd.getRange(2,1,pd.getLastRow()-1,1).getValues().map(x=>String(x[0])):[]);
+  const prev=new Set(ap.getLastRow()>1?ap.getRange(2,2,ap.getLastRow()-1,7).getValues().map(a=>a[0]+"|"+String(a[2]).toLowerCase()+"|"+yr_(a[6])):[]);
+  const nP=[],nA=[],res=[],t0=Date.now(),ts=new Date();let hechas=0,i=1;
+  for(;i<v.length;i++){const r=v[i],g=k=>col[k]>=0?String(r[col[k]]??"").trim():"";
+   if(String(r[rc]??"")!==""){res.push([r[rc]]);continue}
+   if(Date.now()-t0>240000)break; /* margen antes del límite de tiempo de Google; se sigue en la siguiente corrida */
+   const nom=g("nombre"),curp=g("curp").toUpperCase().replace(/\s/g,"");
+   if(!nom){res.push(["Sin nombre: no se importó"]);continue}
+   if(curp&&!CURP.test(curp)){res.push(["CURP no válido: corríjalo o bórrelo y vuelva a correr"]);continue}
+   let nac=fec_(col.nacimiento>=0?r[col.nacimiento]:""),sx=g("sexo");
+   if(/^h/i.test(sx))sx="Hombre";else if(/^m/i.test(sx))sx="Mujer";else sx="";
+   if(curp){const d=deCurp_(curp);if(!nacOk_(nac))nac=nacOk_(d.nac)?d.nac:"";if(!sx)sx=d.sexo}else if(!nacOk_(nac))nac="";
+   const clave=curp||"SC-"+Utilities.getUuid().slice(0,8).toUpperCase();let nota=[];
+   if(!ya.has(clave)){ya.add(clave);nP.push([clave,curp||null,curp?"":clave,nom,mun,g("localidad"),g("telefono"),g("direccion"),"","",g("grupos"),ts,curp?"Completo":"Incompleto",nac,sx,g("colonia"),g("cp"),g("correo")]);nota.push(curp?"Persona nueva":"Persona nueva sin CURP ("+clave+")")}
+   else nota.push("Ya estaba en el padrón");
+   const pr=g("programa");
+   if(pr){const fe=fec_(col.fecha>=0?r[col.fecha]:""),k=clave+"|"+pr.toLowerCase()+"|"+yr_(fe),dup=prev.has(k);prev.add(k);
+    nA.push(["H-"+Utilities.getUuid().slice(0,8),clave,mun,pr,g("eje"),g("area"),g("monto"),fe,"","","","","Histórico fila "+(i+1),dup?"Duplicado probable: mismo programa y año":"","",g("tipo"),g("canal")]);
+    nota.push(dup?"apoyo repetido (Revisar)":"apoyo agregado")}
+   res.push([nota.join("; ")]);hechas++}
+  if(nP.length)pd.getRange(pd.getLastRow()+1,1,nP.length,nP[0].length).setValues(nP);
+  if(nA.length)ap.getRange(ap.getLastRow()+1,1,nA.length,nA[0].length).setValues(nA);
+  if(res.length)im.getRange(2,rc+1,res.length,1).setValues(res);
+  u.alert("Filas procesadas: "+hechas+". Personas nuevas: "+nP.length+". Apoyos: "+nA.length+"."+(i<v.length?"\n\nFaltan filas: vuelva a correr Importar histórico para seguir.":"\n\nTerminado. Revise la columna resultado."))}
+ finally{L.releaseLock()}}
 
 function instalar(){
  if(!P_().getProperty("SAL"))P_().setProperty("SAL",Utilities.getUuid());
