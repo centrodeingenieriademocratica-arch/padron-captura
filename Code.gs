@@ -204,8 +204,15 @@ function instalar(){const u=SpreadsheetApp.getUi();aytos_();
  ScriptApp.newTrigger("geocodificarTodos").timeBased().everyDays(1).atHour(3).create();
  u.alert("Instalado. Falta un solo paso, una sola vez: en Extensiones → Apps Script, Implementar → Nueva implementación → Aplicación web, con Ejecutar como: Yo y Quién tiene acceso: Cualquier persona. Después use Padrón → 2. Nuevo ayuntamiento para cada ayuntamiento.")}
 
-function nuevoAyto(){const u=SpreadsheetApp.getUi(),url=ScriptApp.getService().getUrl();
- if(!url||!/\/exec$/.test(url))return u.alert("Primero publique: en Extensiones → Apps Script, Implementar → Nueva implementación → Aplicación web (Ejecutar como: Yo; acceso: Cualquier persona). Después vuelva a este menú.");
+/* URL pública del servidor (la de la implementación, termina en /exec). Se pide una vez: ScriptApp.getService().getUrl()
+   puede devolver la de prueba, que solo sirve a quien edita el código. */
+function urlServ_(u){let url=SP_().getProperty("URL");const ok=x=>/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(x||"");
+ if(ok(url))return url;
+ const r=u.prompt("Dirección del servidor","Pegue la URL de la aplicación web: en Apps Script, Implementar → Gestionar implementaciones → copie la URL que termina en /exec. Se pide una sola vez.",u.ButtonSet.OK_CANCEL);
+ url=r.getSelectedButton()==u.Button.OK?r.getResponseText().trim():"";
+ if(!ok(url)){u.alert("Esa no es una URL de aplicación web de Apps Script (debe empezar con https://script.google.com/macros/s/ y terminar en /exec).");return null}
+ SP_().setProperty("URL",url);return url}
+function nuevoAyto(){const u=SpreadsheetApp.getUi(),url=urlServ_(u);if(!url)return;
  const r=u.prompt("Nuevo ayuntamiento","Nombre como lo verán sus capturistas. Ej.: Ayuntamiento de San Andrés Cholula",u.ButtonSet.OK_CANCEL);
  if(r.getSelectedButton()!=u.Button.OK||!r.getResponseText().trim())return;
  const mun=r.getResponseText().trim().slice(0,100),ya=aytos_().getDataRange().getValues().slice(1).some(x=>norm_(x[0])===norm_(mun));
