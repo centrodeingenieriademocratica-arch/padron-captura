@@ -20,6 +20,7 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 .r{display:flex;gap:8px}.r>*{flex:1}.st{font-size:14px;color:var(--mut)}.it{padding:8px 0;border-top:1px solid var(--line);font-size:15px}
 .p{color:var(--wn)}.v{color:var(--ok)}.x{color:var(--er)}
 #ex{border-color:var(--ok);margin:12px 0 0}
+input[readonly]{opacity:.65}
 </style></head><body><main>
 <div id="m"></div>
 <section id="login" class="c" hidden><h1 id="tl">Padrón de beneficiarios</h1>
@@ -36,10 +37,11 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <button class="s" onclick="$('evf').hidden=!$('evf').hidden">Dar de alta un apoyo o evento</button>
 <div id="evf" hidden>
 <div class="st">Se da de alta una sola vez. Después, al registrar a cada persona, solo se elige de la lista. Funciona sin señal.</div>
-<label for="eb0">¿Es una nueva entrega o un nuevo periodo de un apoyo que ya existe?</label><select id="eb0"></select>
+<label for="eb0">¿Es una nueva entrega de un apoyo periódico que ya existe?</label><select id="eb0"></select>
 <div id="epb" hidden><label for="epe">Periodo o entrega (ej. Noviembre 2026, 2.ª entrega)</label><input id="epe" autocomplete="off">
-<div class="st">Se copian programa, tipo, eje, área, canal y monto del apoyo elegido. Cambie solo lo que sea distinto y ponga la fecha de esta entrega.</div></div>
-<div id="enb"><label for="en">Nombre del apoyo o evento (lo que verá quien captura)</label><input id="en" autocomplete="off"></div>
+<div class="st">Programa, tipo, eje y área quedan fijos (son lo fundamental del apoyo). Se copian de la última entrega canal, monto, lugar y localidad: cambie solo lo que sea distinto y ponga la fecha de esta entrega.</div></div>
+<div id="enb"><label for="en">Nombre del apoyo o evento (lo que verá quien captura)</label><input id="en" autocomplete="off">
+<label for="epr">¿Es un apoyo periódico? (se repetirá con otras fechas o periodos, sin cambiar lo fundamental)</label><select id="epr"><option value="">No, es de una sola vez</option><option>Semanal</option><option>Quincenal</option><option>Mensual</option><option>Bimestral</option><option>Trimestral</option><option>Semestral</option><option>Anual</option><option>Otra frecuencia</option></select></div>
 <label for="ep">Programa</label><input id="ep" list="dl-ep" autocomplete="off"><datalist id="dl-ep"></datalist>
 <label for="et">Tipo de apoyo</label><input id="et" list="dl-et" autocomplete="off"><datalist id="dl-et"></datalist>
 <label for="ee">Eje</label><input id="ee" list="dl-ee" autocomplete="off"><datalist id="dl-ee"></datalist>
@@ -120,7 +122,7 @@ function msg(t,c){const m=$("m");m.className=c||"";m.textContent=t;if(t)window.s
 const DEMO=API.startsWith("PEGUE");
 if(DEMO){const d=document.createElement("div");d.className="c";d.style.cssText="border-color:var(--wn);color:var(--wn)";d.textContent="MODO DEMOSTRACIÓN: use cualquier clave. Los datos no se envían a ningún servidor. Para probar que ya está registrada una persona, escriba el CURP GOMA800101HPLRRN09.";document.querySelector("main").prepend(d)}
 const demoPost=async b=>{await new Promise(r=>setTimeout(r,400));
- if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{aviso:["(Texto de ejemplo) Aquí aparecerá el aviso de privacidad del ayuntamiento, que el administrador escribe en la hoja Catalogos."],evento:[{id:"E1",n:"Despensa bimestral octubre",lugar:"Explanada del ayuntamiento",ldir:"Portal Hidalgo 1, Centro",llat:19.0414,llng:-98.2063,loc:"Centro",programa:"Alimentación",tipo:"Despensa",eje:"Bienestar",area:"DIF municipal",canal:"Entrega en evento",monto:350,fecha:""},{id:"E2",n:"Beca escolar 2026",programa:"Becas",tipo:"Beca",eje:"Educación",area:"Desarrollo Social",canal:"Ventanilla",monto:"",fecha:""}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
+ if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{aviso:["(Texto de ejemplo) Aquí aparecerá el aviso de privacidad del ayuntamiento, que el administrador escribe en la hoja Catalogos."],evento:[{id:"E1",n:"Despensa bimestral octubre",per:"Bimestral",lugar:"Explanada del ayuntamiento",ldir:"Portal Hidalgo 1, Centro",llat:19.0414,llng:-98.2063,loc:"Centro",programa:"Alimentación",tipo:"Despensa",eje:"Bienestar",area:"DIF municipal",canal:"Entrega en evento",monto:350,fecha:""},{id:"E2",n:"Beca escolar 2026",programa:"Becas",tipo:"Beca",eje:"Educación",area:"Desarrollo Social",canal:"Ventanilla",monto:"",fecha:""}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
  if(b.a==="buscar")return b.curp==="GOMA800101HPLRRN09"?{ok:true,existe:true,nombre:"Ana Gómez Martínez"}:{ok:true,existe:false};
  return{ok:true}};
 const post=async b=>DEMO?demoPost(b):(await fetch(API,{method:"POST",body:JSON.stringify(b)})).json();
@@ -193,7 +195,8 @@ const evDesc=e=>[e.periodo,e.area,e.tipo,e.canal,sinMonto(e)?"monto variable":"$
 function pintaEv(){const l=evLista(),v=$("evt").value,vm=$("emd").value;
  $("evt").innerHTML='<option value="">Elija el apoyo</option>'+l.map(e=>`<option value="${esc(e.id)}">${esc(e.n)}</option>`).join("");$("evt").value=v;
  $("emd").innerHTML='<option value="">Elija el evento o apoyo</option>'+l.map(e=>`<option value="${esc(e.id)}">${esc(e.n)}</option>`).join("");$("emd").value=MO?MO.id:vm;
- $("eb0").innerHTML='<option value="">No, es un apoyo nuevo</option>'+l.map(e=>`<option value="${esc(e.id)}">${esc(e.n)}</option>`).join("");
+ const raices=l.filter(e=>e.per&&!e.base);
+ $("eb0").innerHTML='<option value="">'+(raices.length?"No, es un apoyo nuevo":"No (aún no hay apoyos periódicos)")+'</option>'+raices.map(e=>`<option value="${esc(e.id)}">${esc(e.n)} (${esc(e.per)})</option>`).join("");
  $("evn").textContent=l.length?l.length+" apoyo(s) disponibles para elegir.":"Aún no hay apoyos. Dé de alta el primero.";
  [["ep","programa"],["et","tipo"],["ee","eje"],["ea","area"],["ec","canal"]].forEach(([i,k])=>$("dl-"+i).innerHTML=[...new Set(l.map(e=>e[k]).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join(""))}
 /* Apoyos periódicos: la nueva entrega hereda los datos y el nombre del apoyo original (base) y solo cambia periodo y fecha. */
@@ -208,7 +211,9 @@ function aplicaModo(){const e=MO;$("mb").hidden=!e;$("ubb").hidden=!!(e&&e.lugar
   $("ap").checked=true;$("apb").hidden=false;$("evt").value=e.id;$("evt").onchange();if(e.loc&&!$("loc").value)$("loc").value=e.loc;
   if(e.lugar){GP=null;$("sgb").hidden=true;$("gs").textContent="Sin ubicación todavía (obligatoria)"}}
  else{$("ap").checked=false;$("apb").hidden=true;$("evt").value="";$("evt").onchange()}}
-function baseSel(){const e=evLista().find(x=>x.id===$("eb0").value);$("epb").hidden=!e;$("enb").hidden=!!e;$("epe").value="";$("ef").value="";
+const FIJOS=["ep","et","ee","ea"];
+function baseSel(){const R=evLista().find(x=>x.id===$("eb0").value),e=R&&[...evLista()].reverse().find(x=>x.id===R.id||x.base===R.id);$("epb").hidden=!e;$("enb").hidden=!!e;$("epe").value="";$("ef").value="";
+ FIJOS.forEach(i=>$(i).readOnly=!!e);
  if(e){const r=raiz(e);[["ep","programa"],["et","tipo"],["ee","eje"],["ea","area"],["ec","canal"],["em","monto"],["el","lugar"],["eld","ldir"],["elo","loc"]].forEach(([i,k])=>$(i).value=e[k]??"");GE=e.llat!==""&&e.llat!=null?{lat:+e.llat,lng:+e.llng}:null;$("egs").textContent=GE?"Ubicación del lugar copiada del apoyo anterior":"Sin ubicación del lugar";$("en").value=r.nr||r.n;$("epe").focus()}else $("en").value=""}
 let GE=null;
 function geoEv(){$("egs").textContent="Buscando señal GPS…";navigator.geolocation.getCurrentPosition(p=>{GE={lat:p.coords.latitude,lng:p.coords.longitude};$("egs").textContent=`Ubicación del lugar tomada (±${Math.round(p.coords.accuracy)} m)`;$("elc").value=""},
@@ -221,10 +226,10 @@ async function altaEv(){const b=evLista().find(x=>x.id===$("eb0").value),r=raiz(
  const n=b?(r.nr||r.n)+" · "+(pe||$("ef").value):$("en").value.trim();
  if(!n)return msg("Escriba el nombre del apoyo o evento.","e");
  if(evLista().some(e=>String(e.n).toLowerCase()===n.toLowerCase()))return msg("Ya existe un apoyo con ese nombre. Elíjalo de la lista o use otro nombre.","e");
- const ev={id:"EV-"+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,5).toUpperCase(),n,programa:$("ep").value.trim(),tipo:$("et").value.trim(),eje:$("ee").value.trim(),area:$("ea").value.trim(),canal:$("ec").value.trim(),monto:mo===""?"":+mo,fecha:$("ef").value,base:b?(r.base||r.id):"",periodo:b?(pe||$("ef").value):"",nr:b?(r.nr||r.n):"",lugar:$("el").value.trim(),ldir:$("eld").value.trim(),llat:LU?LU.lat:"",llng:LU?LU.lng:"",loc:$("elo").value.trim()};
+ const ev={id:"EV-"+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,5).toUpperCase(),n,programa:$("ep").value.trim(),tipo:$("et").value.trim(),eje:$("ee").value.trim(),area:$("ea").value.trim(),canal:$("ec").value.trim(),monto:mo===""?"":+mo,fecha:$("ef").value,base:b?(r.base||r.id):"",periodo:b?(pe||$("ef").value):"",nr:b?(r.nr||r.n):"",per:b?(r.per||""):$("epr").value,lugar:$("el").value.trim(),ldir:$("eld").value.trim(),llat:LU?LU.lat:"",llng:LU?LU.lng:"",loc:$("elo").value.trim()};
  $("eb").disabled=true;
  try{S.evl=[...(S.evl||[]),ev];await put("meta",S,"s");await put("cola",{id:ev.id,ts:Date.now(),tipoReg:"evento",nombre:"Apoyo: "+n,ev});
- ["en","ep","et","ee","ea","ec","em","ef","epe","eb0","el","eld","elc","elo"].forEach(i=>$(i).value="");GE=null;$("egs").textContent="Sin ubicación del lugar (si no la toma, se ubica con la dirección)";$("epb").hidden=true;$("enb").hidden=false;$("evf").hidden=true;pintaEv();$("emd").value=ev.id;msg("Apoyo «"+n+"» guardado. Para registrar a sus beneficiarios toque «Entrar al evento».","o");$("evc").scrollIntoView({behavior:"smooth"});await pinta();sync()}
+ ["en","ep","et","ee","ea","ec","em","ef","epe","eb0","el","eld","elc","elo","epr"].forEach(i=>$(i).value="");FIJOS.forEach(i=>$(i).readOnly=false);GE=null;$("egs").textContent="Sin ubicación del lugar (si no la toma, se ubica con la dirección)";$("epb").hidden=true;$("enb").hidden=false;$("evf").hidden=true;pintaEv();$("emd").value=ev.id;msg("Apoyo «"+n+"» guardado. Para registrar a sus beneficiarios toque «Entrar al evento».","o");$("evc").scrollIntoView({behavior:"smooth"});await pinta();sync()}
  catch(e){msg("No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.","e")}
  finally{$("eb").disabled=false}}
 function geo(){$("gs").textContent="Buscando señal GPS…";navigator.geolocation.getCurrentPosition(p=>{GP={lat:p.coords.latitude,lng:p.coords.longitude};$("gs").textContent=`Ubicación tomada (precisión ±${Math.round(p.coords.accuracy)} m)`;$("sgb").hidden=true;$("mg").value=""},
