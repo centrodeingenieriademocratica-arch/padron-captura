@@ -3,6 +3,14 @@
 Qué incluye: **app de captura** (index.html, sw.js, manifest.json) y **servidor** (Code.gs, dentro de tu hoja de Google).
 Todo es gratis y queda en tu cuenta de Google. NO está probado con datos reales: haz primero la prueba del final.
 
+## Dónde se guardan los datos
+- **Cada ayuntamiento tiene su propia hoja de Google** ("Padrón Único") con su propio servidor (Code.gs). Ahí quedan todos sus datos: hojas Padron (personas), Apoyos (entregas), Capturas (historial de todo lo que llegó), Eventos (apoyos que dan de alta las áreas), Claves y Catalogos. Las fotos van a la carpeta privada "Padron-fotos" del Drive de la cuenta que instaló.
+- La hoja conviene crearla con una **cuenta de Google del ayuntamiento** (no personal), para que los datos sean del ayuntamiento, que es el responsable de los datos personales.
+- **Muchos capturistas por ayuntamiento**: cada uno con su clave (menú Padrón → 2). Todos envían al mismo servidor; si llegan varios a la vez, el servidor los atiende en fila y la app reintenta sola lo que no entró. Nada se pierde: queda en el teléfono hasta que el servidor confirma.
+- **Una sola app para todos los ayuntamientos**: se publica una vez (GitHub Pages) y a cada ayuntamiento se le da su enlace: `https://…/index.html?srv=URL_DE_SU_SERVIDOR` (la URL que termina en `/exec`). El teléfono la recuerda. Solo acepta direcciones de Google Apps Script.
+- **Límites**: Google limita el tamaño de una hoja de cálculo (10 millones de celdas) y el uso diario de Apps Script en cuentas gratuitas. Para un ayuntamiento alcanza para decenas de miles de registros; verifica los límites vigentes en la página de cuotas de Google Apps Script. Si un ayuntamiento crece mucho, se le crea una hoja nueva por año.
+- El padrón integral de varios ayuntamientos (y el mapa) se arma en la Etapa 2 leyendo estas hojas; no hay que cambiar la captura.
+
 Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento y sexo** (obligatorios). Si se escribe un CURP válido, la app los sugiere a partir del CURP; el capturista los revisa con la credencial. El servidor los guarda en las columnas nuevas `nacimiento` y `sexo` de Capturas y Padron (se crean solas). (2) **El nombre ya no se usa para unir ni comparar registros.** El único identificador es el CURP. Sin CURP = siempre registro nuevo con folio `SC-`. Con CURP = solo se une a ese mismo CURP. (3) "Revisar" queda solo para apoyo repetido. Los archivos `_v4` y anteriores quedan obsoletos.
 
 ## Instalación (unos 20 minutos)
@@ -18,7 +26,7 @@ Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento 
    - Si cambias el código después, usa **Implementar → Administrar implementaciones → editar → Nueva versión**, para conservar la misma URL. En una hoja ya instalada no hace falta repetir "Instalar": las columnas `nacimiento` y `sexo` se crean solas al primer guardado.
 
 **B. App de captura**
-6. Abre `index.html` con un editor de texto y reemplaza `PEGUE_AQUI_LA_URL_DE_LA_APP_WEB` por esa URL (entre comillas).
+6. Da a los capturistas el enlace de la app con `?srv=` y la URL de tu servidor al final (ver *Dónde se guardan los datos*). O, si prefieres, abre `index.html` y reemplaza `PEGUE_AQUI_LA_URL_DE_LA_APP_WEB` por esa URL (entre comillas).
 7. Publica la carpeta en un alojamiento gratuito con https (GitHub Pages, Cloudflare Pages o Netlify), junto con `sw.js` y `manifest.json`. Verifica en su sitio las condiciones actuales del plan gratuito.
 8. En el celular abre el enlace en Chrome y elige **Instalar app / Añadir a pantalla de inicio**. Abre la app una vez con señal: así queda guardada para usarse sin conexión.
 
@@ -93,6 +101,14 @@ Lo hace el administrador (dueño de la hoja); el capturista nunca ve el padrón.
 2. Por cada fila, busca su **id** en la columna **captura** de la hoja **Apoyos** (la columna **aviso** dice "Duplicado probable").
 3. Si de verdad se entregó dos veces: déjalo. Si fue captura doble: borra la fila repetida en Apoyos.
 4. Al terminar, cambia el **estado** de esa fila en **Capturas** de `Revisar` a `Revisada`. El servidor no lee ese valor, así que no afecta nada más.
+
+**Importar beneficiarios históricos (Excel)**
+1. En la hoja del ayuntamiento: **Archivo → Importar → Subir** tu Excel → *Insertar hojas nuevas*. Renombra esa hoja a **Importar**.
+2. La fila 1 debe tener encabezados. Se reconocen: curp, nombre (obligatorio), nacimiento, sexo, localidad, telefono, correo, direccion, colonia, cp, grupos, programa, tipo, eje, area, canal, monto, fecha (también "nombre completo", "fecha de nacimiento", "domicilio", "código postal", "tipo de apoyo", "importe", "fecha de entrega"). Las demás columnas se ignoran.
+3. Menú **Padrón → 3. Importar histórico** y escribe el municipio igual que en las claves.
+4. Se une solo por CURP: si el CURP ya está, no se duplica la persona y solo se agrega su apoyo. Sin CURP, cada fila es una persona nueva con folio `SC-`. Si falta nacimiento o sexo y hay CURP, se toman del CURP. Si la fila trae programa, se agrega el apoyo (los repetidos del mismo programa y año quedan marcados como *Duplicado probable*).
+5. La columna **resultado** dice qué pasó en cada fila. Las filas con CURP no válido no se importan: corrígelo o bórralo, y vuelve a correr. Las filas con resultado no se repiten, así que puedes correrlo varias veces (con listas muy grandes, pide seguir).
+6. Para otra lista, borra la hoja Importar e importa la siguiente.
 
 **2. Completar un registro Incompleto (solo a mano)**
 1. Si sabes con certeza el CURP de un registro `SC-` (por ejemplo, con la credencial), en **Padron** escribe el CURP en **clave** y en **curp** de esa fila, y cambia **estado** a `Completo`.

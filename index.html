@@ -83,7 +83,11 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <button class="s" onclick="salir()">Cerrar sesión</button>
 </section></main>
 <script>
-const API="PEGUE_AQUI_LA_URL_DE_LA_APP_WEB";
+/* Dirección del servidor de cada ayuntamiento. Se puede pegar aquí, o mandar en el enlace: index.html?srv=URL_QUE_TERMINA_EN_/exec
+   (así una sola publicación sirve a todos los ayuntamientos). Solo se aceptan direcciones de Google Apps Script. */
+const API=(()=>{const ok=u=>/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(u||""),p=new URLSearchParams(location.search).get("srv");
+ let g=null;try{if(ok(p))localStorage.setItem("srv",p);g=localStorage.getItem("srv")}catch(e){}
+ return ok(p)?p:ok(g)?g:"PEGUE_AQUI_LA_URL_DE_LA_APP_WEB"})();
 const MOTIVOS=["GPS sin señal o no funciona","La persona no permitió tomar la ubicación","Domicilio de difícil acceso","Otro (explicar en Notas)"];
 const SEXOS=["Mujer","Hombre"];
 const CURP=/^[A-Z]{4}\d{6}[HM][A-Z]{2}[B-DF-HJ-NP-TV-Z]{3}[A-Z\d]\d$/,$=i=>document.getElementById(i),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
