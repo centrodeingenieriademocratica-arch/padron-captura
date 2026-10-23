@@ -177,11 +177,14 @@ function ubicar(){const r=geocodificar();SpreadsheetApp.getUi().alert("Ubicadas:
 /* Una hoja por ayuntamiento: se instala una vez en cada copia de la plantilla. Si detecta que es una copia nueva,
    crea claves y carpeta de fotos propias, para que nada se comparta con la plantilla ni con otros ayuntamientos. */
 const MUN_=()=>P_().getProperty("MUN")||"";
+// Carpeta donde está la hoja; si no se puede leer, la raíz de Drive.
+function carpetaHoja_(){try{var it=DriveApp.getFileById(SpreadsheetApp.getActive().getId()).getParents();if(it.hasNext())return it.next()}catch(e){}return DriveApp.getRootFolder()}
+
 function instalar(){const u=SpreadsheetApp.getUi(),id=SpreadsheetApp.getActive().getId(),h=P_().getProperty("HOJA"),copia=!!h&&h!==id;
  if(copia||!MUN_()){const r=u.prompt("Nombre del ayuntamiento","Así lo verán sus capturistas. Ej.: Ayuntamiento de San Andrés Cholula",u.ButtonSet.OK_CANCEL);
   if(r.getSelectedButton()!=u.Button.OK||!r.getResponseText().trim())return;P_().setProperty("MUN",r.getResponseText().trim())}
  if(copia||!P_().getProperty("SAL"))P_().setProperty("SAL",Utilities.getUuid());
- if(copia||!P_().getProperty("CARPETA"))P_().setProperty("CARPETA",DriveApp.createFolder("Padrón fotos · "+MUN_()+" (privada)").getId());
+ if(copia||!P_().getProperty("CARPETA"))P_().setProperty("CARPETA",carpetaHoja_().createFolder("Padrón fotos · "+MUN_()+" (privada)").getId());
  P_().setProperty("HOJA",id);
  /* Avance se recalcula solo cada madrugada. */
  ScriptApp.getProjectTriggers().filter(t=>t.getHandlerFunction()==="avance").forEach(t=>ScriptApp.deleteTrigger(t));
