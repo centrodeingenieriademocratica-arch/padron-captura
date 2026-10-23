@@ -6,7 +6,7 @@
    Sin CURP = siempre registro nuevo con folio SC-. Con CURP = se une solo a ese mismo CURP.
    "Revisar" queda solo para apoyo repetido (misma clave, programa y año). NO PROBADO.
    v6 (NO PROBADO): hoja Eventos (las áreas definen cada apoyo; el capturista solo lo elige); colonia, CP, correo e INE reverso.
-   v8 (NO PROBADO): menú "3. Importar histórico" para pasar listas de Excel al padrón.
+   v8 (NO PROBADO): menú "3. Importar histórico" para pasar listas de Excel al padrón; "4. Claves en lote"; "5. Actualizar Avance".
    v7 (NO PROBADO): los apoyos también se dan de alta desde la app (funciona sin señal); llegan a Eventos. */
 const COLS={
  Claves:["id","nombre","municipio","hash","activa"],
@@ -26,7 +26,37 @@ const sh_=n=>SpreadsheetApp.getActive().getSheetByName(n);
 const P_=()=>PropertiesService.getScriptProperties();
 
 function onOpen(){SpreadsheetApp.getUi().createMenu("Padrón")
- .addItem("1. Instalar (una sola vez)","instalar").addItem("2. Nueva clave de capturista","nuevaClave").addItem("3. Importar histórico (hoja Importar)","importar").addToUi()}
+ .addItem("1. Instalar (una sola vez)","instalar").addItem("2. Nueva clave de capturista","nuevaClave").addItem("3. Importar histórico (hoja Importar)","importar")
+ .addItem("4. Claves en lote (hoja NuevasClaves)","clavesLote").addItem("5. Actualizar Avance","avance").addToUi()}
+
+/* ---- Claves en lote: hoja NuevasClaves con columnas nombre y municipio (fila 1 = encabezados).
+   Escribe la clave en la columna C para imprimirla y entregarla; bórrela de ahí después de entregar. ---- */
+function clavesLote(){const u=SpreadsheetApp.getUi();let s=sh_("NuevasClaves");
+ if(!s){s=SpreadsheetApp.getActive().insertSheet("NuevasClaves");s.appendRow(["nombre","municipio","clave (borrar al entregar)"]);s.setFrozenRows(1);return u.alert("Se creó la hoja NuevasClaves. Escriba un capturista por fila (nombre y municipio) y vuelva a correr este menú.")}
+ if(!sh_("Claves"))return u.alert("Primero corra 1. Instalar.");
+ const v=s.getDataRange().getValues();let n=0;
+ for(let i=1;i<v.length;i++){const nom=String(v[i][0]).trim(),mun=String(v[i][1]).trim();if(!nom||!mun||String(v[i][2]||"")!=="")continue;
+  s.getRange(i+1,3).setValue(clave_(nom,mun));n++}
+ u.alert(n?"Se crearon "+n+" claves en la columna C. Imprímalas, entréguelas en persona y después borre esa columna. Las claves no se pueden volver a ver.":"No hay filas nuevas (con nombre, municipio y sin clave).")}
+function clave_(nom,mun){const al="ABCDEFGHJKMNPQRSTUVWXYZ23456789";let k="";for(let i=0;i<10;i++)k+=al[Math.floor(Math.random()*al.length)];
+ sh_("Claves").appendRow([Utilities.getUuid().slice(0,8),nom,mun,hash_(k),"SI"]);return k}
+
+/* ---- Avance: resumen para el informe (por municipio, por capturista y por día). Se recalcula cada vez que se corre. ---- */
+function avance(){const A=SpreadsheetApp.getActive(),rows=n=>{const s=sh_(n);return s&&s.getLastRow()>1?s.getRange(2,1,s.getLastRow()-1,s.getLastColumn()).getValues():[]};
+ const pd=rows("Padron"),ap=rows("Apoyos"),sc=rows("Capturas"),cl=rows("Claves"),nomC={};cl.forEach(c=>nomC[c[0]]=c[1]+" ("+c[2]+")");
+ const M={},C={},D={},dia=x=>x instanceof Date?Utilities.formatDate(x,"America/Mexico_City","yyyy-MM-dd"):String(x).slice(0,10);
+ const m_=k=>M[k]=M[k]||{p:0,inc:0,a:0,mo:0,rev:0};
+ pd.forEach(r=>{const o=m_(r[4]);o.p++;if(String(r[12])==="Incompleto")o.inc++});
+ ap.forEach(r=>{const o=m_(r[2]);o.a++;o.mo+=Number(r[6])||0;if(r[13])o.rev++});
+ sc.forEach(r=>{const k=nomC[r[2]]||r[2],c=C[k]=C[k]||{n:0,u:""},d=dia(r[1]);c.n++;if(d>c.u)c.u=d;D[d]=(D[d]||0)+1});
+ const out=[["Avance actualizado",Utilities.formatDate(new Date(),"America/Mexico_City","yyyy-MM-dd HH:mm"),"","","",""],["","","","","",""],
+  ["Municipio","Personas en padrón","Sin CURP (incompletas)","Apoyos registrados","Monto total ($)","Apoyos repetidos (revisar)"]];
+ Object.keys(M).sort().forEach(k=>out.push([k,M[k].p,M[k].inc,M[k].a,M[k].mo,M[k].rev]));
+ out.push(["","","","","",""],["Capturista","Registros enviados","Último envío","","",""]);
+ Object.keys(C).sort().forEach(k=>out.push([k,C[k].n,C[k].u,"","",""]));
+ out.push(["","","","","",""],["Día","Registros enviados","","","",""]);
+ Object.keys(D).sort().reverse().forEach(k=>out.push([k,D[k],"","","",""]));
+ let s=sh_("Avance")||A.insertSheet("Avance");s.clearContents();s.getRange(1,1,out.length,6).setValues(out);s.autoResizeColumns(1,6);A.setActiveSheet(s)}
 
 /* ---- Importar beneficiarios históricos desde Excel ----
    El administrador importa su Excel a una hoja llamada "Importar" (Archivo → Importar). Fila 1 = encabezados.
@@ -94,8 +124,7 @@ function quien_(c){if(!c)return null;const h=hash_(c),v=sh_("Claves").getDataRan
 function nuevaClave(){const u=SpreadsheetApp.getUi();
  const a=u.prompt("Nombre del capturista");if(a.getSelectedButton()!=u.Button.OK)return;
  const b=u.prompt("Municipio (escríbalo igual en todas las claves y catálogos)");if(b.getSelectedButton()!=u.Button.OK)return;
- const al="ABCDEFGHJKMNPQRSTUVWXYZ23456789";let k="";for(let i=0;i<10;i++)k+=al[Math.floor(Math.random()*al.length)];
- sh_("Claves").appendRow([Utilities.getUuid().slice(0,8),a.getResponseText().trim(),b.getResponseText().trim(),hash_(k),"SI"]);
+ const k=clave_(a.getResponseText().trim(),b.getResponseText().trim());
  u.alert("Clave de "+a.getResponseText()+": "+k+"\n\nEntréguela en persona. No se vuelve a mostrar. Para darla de baja, escriba NO en la columna activa de la hoja Claves.")}
 
 function json_(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON)}

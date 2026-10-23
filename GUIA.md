@@ -5,13 +5,28 @@ Todo es gratis y queda en tu cuenta de Google. NO está probado con datos reales
 
 ## Dónde se guardan los datos
 - **Cada ayuntamiento tiene su propia hoja de Google** ("Padrón Único") con su propio servidor (Code.gs). Ahí quedan todos sus datos: hojas Padron (personas), Apoyos (entregas), Capturas (historial de todo lo que llegó), Eventos (apoyos que dan de alta las áreas), Claves y Catalogos. Las fotos van a la carpeta privada "Padron-fotos" del Drive de la cuenta que instaló.
-- La hoja conviene crearla con una **cuenta de Google del ayuntamiento** (no personal), para que los datos sean del ayuntamiento, que es el responsable de los datos personales.
+- Las hojas se crean en el Drive de quien administra (una por ayuntamiento). El ayuntamiento sigue siendo el responsable de los datos personales: hace falta su aviso de privacidad y un acuerdo por escrito sobre quién recibe y resguarda los datos.
 - **Muchos capturistas por ayuntamiento**: cada uno con su clave (menú Padrón → 2). Todos envían al mismo servidor; si llegan varios a la vez, el servidor los atiende en fila y la app reintenta sola lo que no entró. Nada se pierde: queda en el teléfono hasta que el servidor confirma.
 - **Una sola app para todos los ayuntamientos**: se publica una vez (GitHub Pages) y a cada ayuntamiento se le da su enlace: `https://…/index.html?srv=URL_DE_SU_SERVIDOR` (la URL que termina en `/exec`). El teléfono la recuerda. Solo acepta direcciones de Google Apps Script.
 - **Límites**: Google limita el tamaño de una hoja de cálculo (10 millones de celdas) y el uso diario de Apps Script en cuentas gratuitas. Para un ayuntamiento alcanza para decenas de miles de registros; verifica los límites vigentes en la página de cuotas de Google Apps Script. Si un ayuntamiento crece mucho, se le crea una hoja nueva por año.
 - El padrón integral de varios ayuntamientos (y el mapa) se arma en la Etapa 2 leyendo estas hojas; no hay que cambiar la captura.
 
 Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento y sexo** (obligatorios). Si se escribe un CURP válido, la app los sugiere a partir del CURP; el capturista los revisa con la credencial. El servidor los guarda en las columnas nuevas `nacimiento` y `sexo` de Capturas y Padron (se crean solas). (2) **El nombre ya no se usa para unir ni comparar registros.** El único identificador es el CURP. Sin CURP = siempre registro nuevo con folio `SC-`. Con CURP = solo se une a ese mismo CURP. (3) "Revisar" queda solo para apoyo repetido. Los archivos `_v4` y anteriores quedan obsoletos.
+
+## Menú Padrón (en la hoja)
+1. Instalar (una sola vez) · 2. Nueva clave de capturista · 3. Importar histórico (hoja Importar) · 4. Claves en lote: crea la hoja **NuevasClaves**; escribe nombre y municipio de cada capturista, vuelve a correrlo y aparecen las claves en la columna C para imprimir (bórralas después de entregar) · 5. Actualizar Avance: hoja **Avance** con personas, apoyos y montos por municipio, registros por capturista y por día, para el informe.
+
+## Instructivo para capturistas (imprimir y entregar)
+1. Abra en el celular el enlace que le dieron (Chrome en Android, Safari en iPhone). Menú del navegador → *Agregar a pantalla de inicio*.
+2. **La primera vez, con señal**: escriba su clave y toque Entrar. Después funciona sin señal.
+3. **Dar de alta un apoyo** (una sola vez por apoyo): *Apoyos y eventos* → *Dar de alta un apoyo o evento* → nombre, programa, tipo, área, canal, monto y fecha → *Guardar apoyo*.
+4. **Registrar a una persona**: foto de la INE (frente y reverso) si la trae; revise lo que se llenó solo. CURP (si no lo tiene, déjelo vacío). Nombre, nacimiento, sexo, domicilio, colonia, CP, localidad, teléfono, grupos, foto.
+5. **Ubicación**: en el domicilio, al aire libre, toque *Tomar mi ubicación actual*. Si no se puede, *No puedo tomar la ubicación* y elija el motivo.
+6. **Apoyo**: marque *Registrar un apoyo entregado*, elija el apoyo de la lista, escriba el monto solo si lo pide, foto del apoyo.
+7. Lea o explique el aviso de privacidad, marque la casilla y toque **Guardar registro**.
+8. Si aparece *Ya registrado: NOMBRE*, no capture otra vez sus datos: solo el apoyo nuevo.
+9. **Al final del día, con señal**: toque *Enviar pendientes ahora* hasta que diga *Todo enviado*. No cierre sesión con pendientes.
+10. Un dato mal capturado no lo puede corregir usted: avise a su administrador con el nombre y qué está mal.
 
 ## Instalación (unos 20 minutos)
 
