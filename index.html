@@ -31,6 +31,7 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <button class="s" onclick="sync(true)">Enviar pendientes ahora</button></div>
 <div class="c"><h1>Nuevo registro</h1>
 <label for="fi">Credencial INE (frente), opcional</label><input id="fi" type="file" accept="image/*" capture="environment" onchange="leerIne()">
+<label for="fr">Credencial INE (reverso), opcional</label><input id="fr" type="file" accept="image/*" capture="environment">
 <div class="st" id="os">Al tomar la foto se leen los datos en el teléfono y se llenan los campos. Revíselos siempre.</div>
 <label for="curp">CURP (opcional; sin CURP queda incompleto)</label><input id="curp" maxlength="18" autocapitalize="characters" autocomplete="off">
 <div id="ex" class="c" hidden><b>Ya registrado: <span id="exn"></span></b>
@@ -43,7 +44,9 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <div class="st" id="dc"></div>
 <label for="loc">Localidad</label><input id="loc" list="dl-loc" autocomplete="off"><datalist id="dl-loc"></datalist>
 <label for="tel">Teléfono (opcional)</label><input id="tel" type="tel">
-<label for="dir">Domicilio</label><input id="dir" autocomplete="off">
+<label for="mail">Correo (opcional)</label><input id="mail" type="email" autocomplete="off">
+<label for="dir">Domicilio (calle y número)</label><input id="dir" autocomplete="off">
+<div class="r"><div><label for="col">Colonia</label><input id="col" autocomplete="off"></div><div><label for="cp">Código postal</label><input id="cp" inputmode="numeric" maxlength="5"></div></div>
 <label>Grupos poblacionales</label><div id="gr"></div>
 <label>Foto de la persona</label><input id="fb" type="file" accept="image/*" capture="user">
 </div>
@@ -54,10 +57,9 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <div class="st">Use esto solo si de verdad no se pudo. Intente primero con el botón de arriba, al aire libre.</div></div>
 <div class="ck" style="margin-top:14px"><input type="checkbox" id="ap"><label for="ap" style="margin:0;color:var(--ink)">Registrar un apoyo entregado</label></div>
 <div id="apb" hidden>
-<label for="pr">Programa</label><select id="pr"></select>
-<label for="ej">Eje</label><select id="ej"></select>
-<label for="ar">Área que otorga</label><input id="ar" list="dl-ar" autocomplete="off"><datalist id="dl-ar"></datalist>
-<div class="r"><div><label for="mo">Monto ($)</label><input id="mo" type="number" inputmode="decimal" min="0"></div><div><label for="fe">Fecha</label><input id="fe" type="date"></div></div>
+<label for="evt">Apoyo que recibe</label><select id="evt"></select>
+<div class="st" id="evd">Los apoyos los dan de alta las áreas del ayuntamiento. Si no aparece, avise a su administrador.</div>
+<div id="mob" hidden><label for="mo">Monto entregado ($)</label><input id="mo" type="number" inputmode="decimal" min="0"></div>
 <label>Foto del apoyo entregado</label><input id="fa" type="file" accept="image/*" capture="environment"></div>
 <label for="no">Notas (opcional)</label><input id="no">
 <div class="ck" style="margin-top:14px"><input type="checkbox" id="av"><label for="av" style="margin:0;color:var(--ink)">Le informé a la persona el aviso de privacidad</label></div>
@@ -79,7 +81,7 @@ function msg(t,c){const m=$("m");m.className=c||"";m.textContent=t;if(t)window.s
 const DEMO=API.startsWith("PEGUE");
 if(DEMO){const d=document.createElement("div");d.className="c";d.style.cssText="border-color:var(--wn);color:var(--wn)";d.textContent="MODO DEMOSTRACIÓN: use cualquier clave. Los datos no se envían a ningún servidor. Para probar que ya está registrada una persona, escriba el CURP GOMA800101HPLRRN09.";document.querySelector("main").prepend(d)}
 const demoPost=async b=>{await new Promise(r=>setTimeout(r,400));
- if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{programa:["Despensa bimestral","Becas escolares","Techo digno"],eje:["Bienestar","Educación","Vivienda"],area:["DIF municipal","Desarrollo Social"],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
+ if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{evento:[{id:"E1",n:"Despensa bimestral octubre",d:"DIF municipal · Despensa · $350",m:false},{id:"E2",n:"Beca escolar 2026",d:"Desarrollo Social · Beca · monto variable",m:true}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
  if(b.a==="buscar")return b.curp==="GOMA800101HPLRRN09"?{ok:true,existe:true,nombre:"Ana Gómez Martínez"}:{ok:true,existe:false};
  return{ok:true}};
 const post=async b=>DEMO?demoPost(b):(await fetch(API,{method:"POST",body:JSON.stringify(b)})).json();
@@ -137,16 +139,18 @@ async function entrar(){const k=$("k").value.trim().toUpperCase();if(!k)return;
  S={clave:k,nombre:x.nombre,mun:x.mun,cat:x.cat};await put("meta",S,"s");msg("");mostrar()}
  catch(e){msg("No se pudo conectar. Intente de nuevo con señal.","e")}}
 function mostrar(){$("login").hidden=true;$("app").hidden=false;$("quien").textContent=S.nombre;$("mun").textContent=S.mun;
- $("dl-loc").innerHTML=opts(S.cat.localidad).replace('<option value=""></option>',"");$("dl-ar").innerHTML=opts(S.cat.area).replace('<option value=""></option>',"");
- $("pr").innerHTML=opts(S.cat.programa,"Elija un programa");$("ej").innerHTML=opts(S.cat.eje,"Elija un eje");
+ $("dl-loc").innerHTML=opts(S.cat.localidad).replace('<option value=""></option>',"");
+ $("evt").innerHTML='<option value="">Elija el apoyo</option>'+(S.cat.evento||[]).map(e=>`<option value="${esc(e.id)}">${esc(e.n)}</option>`).join("");
  $("mg").innerHTML=opts(MOTIVOS,"Elija el motivo");$("sx").innerHTML=opts(SEXOS,"Elija");
  $("gr").innerHTML=(S.cat.grupo||[]).map((g,i)=>`<div class="ck"><input type="checkbox" id="g${i}" value="${esc(g)}"><label for="g${i}" style="margin:0;color:var(--ink)">${esc(g)}</label></div>`).join("");
- $("fe").value=hoy();$("nac").max=hoy();persistir().then(pinta);pinta();sync()}
+ $("nac").max=hoy();persistir().then(pinta);pinta();sync()}
 async function refrescar(){try{if(!navigator.onLine||!S)return;const x=await post({a:"login",clave:S.clave});if(x.ok){S.cat=x.cat;await put("meta",S,"s")}else if(x.error==="clave")msg("Su clave ya no es válida. Pida una nueva.","e")}catch(e){}}
 function geo(){$("gs").textContent="Buscando señal GPS…";navigator.geolocation.getCurrentPosition(p=>{GP={lat:p.coords.latitude,lng:p.coords.longitude};$("gs").textContent=`Ubicación tomada (precisión ±${Math.round(p.coords.accuracy)} m)`;$("sgb").hidden=true;$("mg").value=""},
  e=>{GP=null;$("gs").textContent="No se pudo tomar la ubicación. Active el GPS y permita el acceso, o toque «No puedo tomar la ubicación».";$("bn").hidden=false},{enableHighAccuracy:true,timeout:25000,maximumAge:0})}
 function sinGps(){if(GP){msg("Ya hay ubicación tomada. No hace falta el motivo.","w");return}$("sgb").hidden=false;$("mg").focus()}
 $("ap").onchange=()=>$("apb").hidden=!$("ap").checked;
+const evSel=()=>(S&&S.cat.evento||[]).find(e=>e.id===$("evt").value);
+$("evt").onchange=()=>{const e=evSel();$("evd").textContent=e?e.d:"";$("mob").hidden=!(e&&e.m);if(!(e&&e.m))$("mo").value=""};
 
 async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX||$("nom").value.trim();
  if(curp&&!CURP.test(curp))return msg("El CURP no tiene un formato válido. Revise las 18 posiciones o déjelo vacío.","e");
@@ -158,14 +162,16 @@ async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX|
  if(mg.startsWith("Otro")&&!$("no").value.trim())return msg("Si el motivo es «Otro», explíquelo en Notas.","e");
  if(!$("av").checked)return msg("Confirme que informó el aviso de privacidad.","e");
  const ap=$("ap").checked;if(EX&&!ap)return msg("Esta persona ya está registrada: registre el apoyo nuevo.","e");
- if(ap&&(!$("pr").value||!$("mo").value))return msg("Para registrar un apoyo elija el programa y escriba el monto.","e");
+ const ev=ap?evSel():null;if(ap&&!ev)return msg("Elija el apoyo que recibe la persona.","e");
+ if(ev&&ev.m&&!$("mo").value)return msg("Escriba el monto entregado.","e");
+ const cp=EX?"":$("cp").value.trim();if(cp&&!/^\d{5}$/.test(cp))return msg("El código postal lleva 5 números.","e");
  $("bs").disabled=true;
  try{const v=i=>EX?"":$(i).value.trim();
- const r={id:Date.now().toString(36)+Math.random().toString(36).slice(2,8),ts:Date.now(),curp,nombre:nom,nacimiento:EX?"":nac,sexo:EX?"":sx,localidad:v("loc"),tel:v("tel"),direccion:v("dir"),lat:GP?GP.lat:"",lng:GP?GP.lng:"",sinGps:mg,
- grupos:EX?[]:[...document.querySelectorAll("#gr input:checked")].map(i=>i.value),notas:$("no").value.trim(),aviso:true,fotoBen:EX?"":await comp($("fb").files[0]),fotoIne:EX?"":await comp($("fi").files[0])};
- if(ap)Object.assign(r,{programa:$("pr").value,eje:$("ej").value,area:$("ar").value.trim(),monto:+$("mo").value,fecha:$("fe").value,fotoApoyo:await comp($("fa").files[0])});
+ const r={id:Date.now().toString(36)+Math.random().toString(36).slice(2,8),ts:Date.now(),curp,nombre:nom,nacimiento:EX?"":nac,sexo:EX?"":sx,localidad:v("loc"),tel:v("tel"),direccion:v("dir"),colonia:v("col"),cp,correo:v("mail"),lat:GP?GP.lat:"",lng:GP?GP.lng:"",sinGps:mg,
+ grupos:EX?[]:[...document.querySelectorAll("#gr input:checked")].map(i=>i.value),notas:$("no").value.trim(),aviso:true,fotoBen:EX?"":await comp($("fb").files[0]),fotoIne:EX?"":await comp($("fi").files[0]),fotoIneR:EX?"":await comp($("fr").files[0])};
+ if(ev)Object.assign(r,{evento:ev.id,programa:ev.n,monto:ev.m?+$("mo").value:"",fotoApoyo:await comp($("fa").files[0])});
  await put("cola",r);
- ["curp","nom","nac","sx","loc","tel","dir","no","mo","fb","fi","fa"].forEach(i=>$(i).value="");$("dc").textContent="";$("ap").checked=false;$("apb").hidden=true;$("av").checked=false;GP=null;$("gs").textContent="Sin ubicación todavía (obligatoria)";$("sgb").hidden=true;$("mg").value="";quitaEx();
+ ["curp","nom","nac","sx","loc","tel","mail","dir","col","cp","no","mo","evt","fb","fi","fr","fa"].forEach(i=>$(i).value="");$("mob").hidden=true;$("evd").textContent="";$("dc").textContent="";$("ap").checked=false;$("apb").hidden=true;$("av").checked=false;GP=null;$("gs").textContent="Sin ubicación todavía (obligatoria)";$("sgb").hidden=true;$("mg").value="";quitaEx();
  document.querySelectorAll("#gr input").forEach(i=>i.checked=false);msg("Registro guardado en este teléfono.","o");await pinta();sync()}
  catch(e){msg("No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.","e")}
  finally{$("bs").disabled=false}}
