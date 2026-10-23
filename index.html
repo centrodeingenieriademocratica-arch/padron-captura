@@ -96,13 +96,20 @@ input[readonly]{opacity:.65}
 <details id="avt" hidden style="margin-top:14px"><summary>Ver aviso de privacidad</summary><div class="st" id="avx" style="white-space:pre-wrap;margin-top:6px"></div></details>
 <div class="ck" style="margin-top:14px"><input type="checkbox" id="av"><label for="av" style="margin:0;color:var(--ink)">Le informé a la persona el aviso de privacidad</label></div>
 <button onclick="guardar()" id="bs">Guardar registro</button></div>
+<div id="adm" hidden>
+<details class="c"><summary><b>Claves de capturistas (administrador)</b></summary>
+<div class="st">Cree una clave por persona y entréguela en persona: solo se muestra una vez.</div>
+<label for="cn">Nombre del capturista</label><input id="cn">
+<div class="ck" style="margin-top:10px"><input type="checkbox" id="cr"><label for="cr" style="margin:0;color:var(--ink)">También puede dar claves e importar Excel (administrador)</label></div>
+<button class="s" onclick="creaClave()">Crear clave</button><div id="cv" style="font-size:1.4em;font-weight:700;letter-spacing:2px;margin-top:8px"></div>
+<button class="s" onclick="verClaves()">Ver claves activas</button><div id="cl"></div></details>
 <details class="c"><summary><b>Importar lista de Excel (histórico)</b></summary>
 <div class="st">Suba la lista tal como la tenga (Excel o CSV). Se guarda completa en la hoja del ayuntamiento y cada persona pasa al padrón; quien ya estaba no se duplica. Necesita señal.</div>
 <label for="xf">Archivo</label><input id="xf" type="file" accept=".xlsx,.xls,.xlsm,.ods,.csv" onchange="xLee()">
 <div id="xhb" hidden><label for="xh">Hoja del archivo</label><select id="xh"></select></div>
 <label for="xp">Programa o apoyo de toda la lista (solo si el archivo no trae esa columna)</label><input id="xp" placeholder="Ej. Despensas DIF 2024">
 <label for="xa">Área que lo entregó (solo si el archivo no trae esa columna)</label><input id="xa" placeholder="Ej. DIF municipal">
-<button class="s" id="xb" onclick="xSube()">Importar al padrón</button><div class="st" id="xs" style="white-space:pre-wrap"></div></details>
+<button class="s" id="xb" onclick="xSube()">Importar al padrón</button><div class="st" id="xs" style="white-space:pre-wrap"></div></details></div>
 <div class="c"><h2>Mis últimos registros en este teléfono</h2><div id="hl"></div></div>
 <button class="s" onclick="salir()">Cerrar sesión</button>
 </section></main>
@@ -112,9 +119,12 @@ input[readonly]{opacity:.65}
 const API=(()=>{const ok=u=>/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(u||""),p=new URLSearchParams(location.search).get("srv");
  let g=null;try{if(ok(p))localStorage.setItem("srv",p);g=localStorage.getItem("srv")}catch(e){}
  return ok(p)?p:ok(g)?g:"PEGUE_AQUI_LA_URL_DE_LA_APP_WEB"})();
+/* Código del ayuntamiento (m en el enlace): un solo servidor atiende a todos y cada uno usa solo su propia hoja. */
+const M=(()=>{const ok=x=>/^[A-Z0-9]{12}$/.test(x||""),p=new URLSearchParams(location.search).get("m");let g=null;
+ try{if(ok(p))localStorage.setItem("m",p);g=localStorage.getItem("m")}catch(e){}return ok(p)?p:ok(g)?g:""})();
 /* El enlace siempre lleva la dirección del servidor: así, al "Agregar a pantalla de inicio" (sobre todo en iPhone, que guarda aparte), la app abre conectada. */
-if(!API.startsWith("PEGUE")){const q=new URLSearchParams(location.search);if(q.get("srv")!==API){q.set("srv",API);history.replaceState(null,"",location.pathname+"?"+q)}
- try{const m={name:"Padrón de beneficiarios",short_name:"Padrón",start_url:location.origin+location.pathname+"?srv="+encodeURIComponent(API),display:"standalone",background_color:"#EEF1F4",theme_color:"#0F6B5C",lang:"es",
+if(!API.startsWith("PEGUE")){const q=new URLSearchParams(location.search);if(q.get("srv")!==API||(M&&q.get("m")!==M)){q.set("srv",API);if(M)q.set("m",M);history.replaceState(null,"",location.pathname+"?"+q)}
+ try{const m={name:"Padrón de beneficiarios",short_name:"Padrón",start_url:location.origin+location.pathname+"?srv="+encodeURIComponent(API)+(M?"&m="+M:""),display:"standalone",background_color:"#EEF1F4",theme_color:"#0F6B5C",lang:"es",
   icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230F6B5C'/%3E%3Cpath d='M30 52l14 14 28-30' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",sizes:"any",type:"image/svg+xml"}]};
   document.querySelector('link[rel="manifest"]').href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/manifest+json"}))}catch(e){}}
 const MOTIVOS=["Captura fuera del domicilio (oficina, evento)","GPS sin señal o no funciona","La persona no permitió tomar la ubicación","Domicilio de difícil acceso","Otro (explicar en Notas)"];
@@ -129,11 +139,14 @@ function msg(t,c){const m=$("m");m.className=c||"";m.textContent=t;if(t)window.s
 const DEMO=API.startsWith("PEGUE");
 if(DEMO){const d=document.createElement("div");d.className="c";d.style.cssText="border-color:var(--wn);color:var(--wn)";d.textContent="MODO DEMOSTRACIÓN: use cualquier clave. Los datos no se envían a ningún servidor. Para probar que ya está registrada una persona, escriba el CURP GOMA800101HPLRRN09.";document.querySelector("main").prepend(d)}
 const demoPost=async b=>{await new Promise(r=>setTimeout(r,400));
- if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{aviso:["(Texto de ejemplo) Aquí aparecerá el aviso de privacidad del ayuntamiento, que el administrador escribe en la hoja Catalogos."],evento:[{id:"E1",n:"Despensa bimestral octubre",per:"Bimestral",lugar:"Explanada del ayuntamiento",ldir:"Portal Hidalgo 1, Centro",llat:19.0414,llng:-98.2063,loc:"Centro",programa:"Alimentación",tipo:"Despensa",eje:"Bienestar",area:"DIF municipal",canal:"Entrega en evento",monto:350,fecha:""},{id:"E2",n:"Beca escolar 2026",programa:"Becas",tipo:"Beca",eje:"Educación",area:"Desarrollo Social",canal:"Ventanilla",monto:"",fecha:""}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
+ if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",rol:"admin",cat:{aviso:["(Texto de ejemplo) Aquí aparecerá el aviso de privacidad del ayuntamiento, que el administrador escribe en la hoja Catalogos."],evento:[{id:"E1",n:"Despensa bimestral octubre",per:"Bimestral",lugar:"Explanada del ayuntamiento",ldir:"Portal Hidalgo 1, Centro",llat:19.0414,llng:-98.2063,loc:"Centro",programa:"Alimentación",tipo:"Despensa",eje:"Bienestar",area:"DIF municipal",canal:"Entrega en evento",monto:350,fecha:""},{id:"E2",n:"Beca escolar 2026",programa:"Becas",tipo:"Beca",eje:"Educación",area:"Desarrollo Social",canal:"Ventanilla",monto:"",fecha:""}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
  if(b.a==="buscar")return b.curp==="GOMA800101HPLRRN09"?{ok:true,existe:true,nombre:"Ana Gómez Martínez"}:{ok:true,existe:false};
+ if(b.a==="clave")return{ok:true,clave:"DEMO"+Math.random().toString(36).slice(2,8).toUpperCase()};
+ if(b.a==="claves")return{ok:true,claves:[{id:"c1",n:"María López (demostración)",activa:true,rol:"admin"},{id:"c2",n:"Pedro Ruiz",activa:true,rol:"capturista"}]};
+ if(b.a==="baja")return b.id==="c1"?{ok:false,error:"propia"}:{ok:true};
  if(b.a==="importar")return{ok:true,hechas:(b.filas||[]).length-(b.filas&&/nombre/i.test(b.filas[0].join(" "))?1:0),nuevas:0,apoyos:0,falta:false,programa:false,usadas:["(demostración)"],sinUsar:[]};
  return{ok:true}};
-const post=async b=>DEMO?demoPost(b):(await fetch(API,{method:"POST",body:JSON.stringify(b)})).json();
+const post=async b=>DEMO?demoPost(b):(await fetch(API,{method:"POST",body:JSON.stringify(Object.assign({m:(S&&S.m)||M},b))})).json();
 const opts=(a,v="")=>`<option value="">${v}</option>`+(a||[]).map(x=>`<option>${esc(x)}</option>`).join("");
 const comp=(f,mx=1000,q=.65,g)=>new Promise(ok=>{if(!f)return ok("");const im=new Image(),u=URL.createObjectURL(f);im.onload=()=>{const k=Math.min(1,mx/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;const x=c.getContext("2d");if(g)x.filter="grayscale(1) contrast(1.4)";x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL("image/jpeg",q))};im.onerror=()=>ok("");im.src=u});
 /* ---- Lectura de INE en el teléfono (Tesseract.js; la imagen no sale del dispositivo) ---- */
@@ -184,17 +197,17 @@ async function persistir(){try{if(navigator.storage&&navigator.storage.persist)P
 
 async function entrar(){const k=$("k").value.trim().toUpperCase();if(!k)return;
  if(!navigator.onLine){msg("Sin señal. Conéctese para entrar la primera vez.","e");return}
- try{const x=await post({a:"login",clave:k});if(!x.ok){msg("Clave no válida. Verifíquela con su administrador.","e");return}
- S={clave:k,nombre:x.nombre,mun:x.mun,cat:x.cat};await put("meta",S,"s");msg("");mostrar()}
+ try{const x=await post({a:"login",clave:k,m:M});if(!x.ok){msg(x.error==="enlace"?"Este enlace está incompleto o ya no es válido. Pida a su administrador el enlace de la app.":"Clave no válida. Verifíquela con su administrador.","e");return}
+ S={clave:k,m:M,nombre:x.nombre,mun:x.mun,rol:x.rol,cat:x.cat};await put("meta",S,"s");msg("");mostrar()}
  catch(e){msg("No se pudo conectar. Intente de nuevo con señal.","e")}}
-function mostrar(){$("login").hidden=true;$("app").hidden=false;$("quien").textContent=S.nombre;$("mun").textContent=S.mun;document.title="Padrón · "+S.mun;
+function mostrar(){$("login").hidden=true;$("app").hidden=false;$("adm").hidden=S.rol!=="admin";$("quien").textContent=S.nombre;$("mun").textContent=S.mun;document.title="Padrón · "+S.mun;
  const av=(S.cat.aviso||[]).join("\n\n");$("avx").textContent=av;$("avt").hidden=!av;
  $("dl-loc").innerHTML=opts(S.cat.localidad).replace('<option value=""></option>',"");
  pintaEv();MO=S.modo?evLista().find(e=>e.id===S.modo)||null:null;aplicaModo();
  $("mg").innerHTML=opts(MOTIVOS,"Elija el motivo");$("sx").innerHTML=opts(SEXOS,"Elija");
  $("gr").innerHTML=(S.cat.grupo||[]).map((g,i)=>`<div class="ck"><input type="checkbox" id="g${i}" value="${esc(g)}"><label for="g${i}" style="margin:0;color:var(--ink)">${esc(g)}</label></div>`).join("");
  $("nac").max=hoy();persistir().then(pinta);pinta();sync()}
-async function refrescar(){try{if(!navigator.onLine||!S)return;const x=await post({a:"login",clave:S.clave});if(x.ok){S.cat=x.cat;const ya=(x.cat.evento||[]).map(e=>e.id);S.evl=(S.evl||[]).filter(e=>ya.indexOf(e.id)<0);await put("meta",S,"s");pintaEv()}else if(x.error==="clave")msg("Su clave ya no es válida. Pida una nueva.","e")}catch(e){}}
+async function refrescar(){try{if(!navigator.onLine||!S)return;const x=await post({a:"login",clave:S.clave});if(x.ok){S.cat=x.cat;S.rol=x.rol;$("adm").hidden=S.rol!=="admin";const ya=(x.cat.evento||[]).map(e=>e.id);S.evl=(S.evl||[]).filter(e=>ya.indexOf(e.id)<0);await put("meta",S,"s");pintaEv()}else if(x.error==="clave")msg("Su clave ya no es válida. Pida una nueva.","e")}catch(e){}}
 
 /* ---- Apoyos y eventos: los del servidor más los dados de alta en este teléfono que aún no llegan ---- */
 const sinMonto=e=>e.monto===""||e.monto==null;
@@ -236,7 +249,7 @@ async function altaEv(){const b=evLista().find(x=>x.id===$("eb0").value),r=raiz(
  if(evLista().some(e=>String(e.n).toLowerCase()===n.toLowerCase()))return msg("Ya existe un apoyo con ese nombre. Elíjalo de la lista o use otro nombre.","e");
  const ev={id:"EV-"+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,5).toUpperCase(),n,programa:$("ep").value.trim(),tipo:$("et").value.trim(),eje:$("ee").value.trim(),area:$("ea").value.trim(),canal:$("ec").value.trim(),monto:mo===""?"":+mo,fecha:$("ef").value,base:b?(r.base||r.id):"",periodo:b?(pe||$("ef").value):"",nr:b?(r.nr||r.n):"",per:b?(r.per||""):$("epr").value,lugar:$("el").value.trim(),ldir:$("eld").value.trim(),llat:LU?LU.lat:"",llng:LU?LU.lng:"",loc:$("elo").value.trim()};
  $("eb").disabled=true;
- try{S.evl=[...(S.evl||[]),ev];await put("meta",S,"s");await put("cola",{id:ev.id,ts:Date.now(),tipoReg:"evento",nombre:"Apoyo: "+n,ev});
+ try{S.evl=[...(S.evl||[]),ev];await put("meta",S,"s");await put("cola",{id:ev.id,ts:Date.now(),tipoReg:"evento",nombre:"Apoyo: "+n,ev,de:S.clave+"|"+(S.m||"")});
  ["en","ep","et","ee","ea","ec","em","ef","epe","eb0","el","eld","elc","elo","epr"].forEach(i=>$(i).value="");FIJOS.forEach(i=>$(i).readOnly=false);GE=null;$("egs").textContent="Sin ubicación del lugar (si no la toma, se ubica con la dirección)";$("epb").hidden=true;$("enb").hidden=false;$("evf").hidden=true;pintaEv();$("emd").value=ev.id;msg("Apoyo «"+n+"» guardado. Para registrar a sus beneficiarios toque «Entrar al evento».","o");$("evc").scrollIntoView({behavior:"smooth"});await pinta();sync()}
  catch(e){msg("No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.","e")}
  finally{$("eb").disabled=false}}
@@ -271,13 +284,21 @@ async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX|
  grupos:EX?[]:[...document.querySelectorAll("#gr input:checked")].map(i=>i.value),notas:$("no").value.trim(),aviso:true,fotoBen:EX?"":await comp($("fb").files[0]),fotoIne:EX?"":await comp($("fi").files[0]),fotoIneR:EX?"":await comp($("fr").files[0])};
  /* Se manda la definición completa del apoyo: si el servidor aún no lo tiene, lo crea. */
  if(ev)Object.assign(r,{evento:ev.id,ev,programa:ev.programa||ev.n,monto:sinMonto(ev)?+$("mo").value:ev.monto,fotoApoyo:await comp($("fa").files[0])});
- await put("cola",r);
+ r.de=S.clave+"|"+(S.m||"");await put("cola",r);
  ["curp","nom","nac","sx","loc","tel","mail","dir","col","cp","no","mo","evt","fb","fi","fr","fa","co"].forEach(i=>$(i).value="");$("mob").hidden=true;$("evd").textContent="";$("dc").textContent="";$("ap").checked=false;$("apb").hidden=true;$("av").checked=false;GP=null;$("gs").textContent="Sin ubicación todavía (obligatoria)";$("sgb").hidden=true;$("mg").value="";quitaEx();
  document.querySelectorAll("#gr input").forEach(i=>i.checked=false);if(MO)aplicaModo();msg("Registro guardado en este teléfono."+(MO?" Siga con la siguiente persona.":""),"o");if(MO)$("curp").focus();await pinta();sync()}
  catch(e){msg("No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.","e")}
  finally{$("bs").disabled=false}}
 
 /* Solo el error "datos" es rechazo definitivo. Cualquier otro fallo (servidor ocupado, tardado, página de error) se reintenta solo. */
+/* Administrador del ayuntamiento: claves de capturistas (se necesita señal). */
+async function creaClave(){const n=$("cn").value.trim(),v=$("cv");if(!n){v.textContent="Escriba el nombre.";return}if(!navigator.onLine){v.textContent="Sin señal.";return}
+ try{const x=await post({a:"clave",clave:S.clave,nombre:n,rol:$("cr").checked?"admin":"capturista"});v.textContent=x.ok?n+": "+x.clave:"No se pudo crear la clave.";if(x.ok){$("cn").value="";$("cr").checked=false}}catch(e){v.textContent="No se pudo conectar."}}
+async function verClaves(){const l=$("cl");if(!navigator.onLine){l.textContent="Sin señal.";return}
+ try{const x=await post({a:"claves",clave:S.clave});if(!x.ok){l.textContent="No se pudo consultar.";return}
+  l.innerHTML=x.claves.filter(c=>c.activa).map(c=>`<div class="it v">${esc(c.n)}${c.rol==="admin"?" · administrador":""} <button class="s" style="width:auto;padding:4px 10px;margin:0 0 0 8px" onclick="baja('${esc(c.id)}','${esc(c.n).replace(/'/g,"")}')">Dar de baja</button></div>`).join("")||"No hay claves activas."}catch(e){l.textContent="No se pudo conectar."}}
+async function baja(id,n){if(!confirm("¿Dar de baja la clave de "+n+"? Ya no podrá entrar ni enviar."))return;
+ try{const x=await post({a:"baja",clave:S.clave,id});if(!x.ok)alert(x.error==="propia"?"No puede dar de baja su propia clave.":"No se pudo.");verClaves()}catch(e){alert("No se pudo conectar.")}}
 /* Importar Excel: se lee en el teléfono o la computadora y se manda en partes; el servidor reconoce las columnas. */
 let XW=null;
 async function xLee(){const f=$("xf").files[0],st=$("xs");XW=null;XS=null;$("xb").textContent="Importar al padrón";$("xhb").hidden=true;if(!f)return;st.textContent="Leyendo el archivo…";
@@ -311,10 +332,11 @@ async function xSube(){const st=$("xs"),b=$("xb");if(!XW){st.textContent="Primer
  catch(e){st.textContent="Se cortó la conexión con "+X.T.hechas+" de "+n+" filas. Oprima Seguir importando cuando haya señal; no se duplica."}
  finally{b.disabled=false;b.textContent=XS?"Seguir importando":"Importar al padrón"}}
 async function sync(manual){if(busy||!S)return;if(!navigator.onLine){if(manual)msg("Sin señal. Los registros se enviarán cuando haya conexión.","w");return}
- busy=true;try{for(const r of await all("cola")){if(r.rech)continue;let x;
+ busy=true;try{for(const r of await all("cola")){if(r.rech||(r.de&&r.de!==S.clave+"|"+(S.m||"")))continue;let x; /* cada registro va solo con la sesión que lo capturó */
  try{x=await post({a:"guardar",clave:S.clave,reg:r})}catch(e){if(manual)msg("No se pudo conectar. Se reintentará.","w");break}
  if(x.ok){await del("cola",r.id);await put("hist",{id:r.id,nombre:r.nombre,ts:r.ts})}
  else if(x.error==="clave"){msg("Su clave ya no es válida. Pida una nueva; sus registros siguen guardados.","e");break}
+ else if(x.error==="enlace"){msg("El enlace de la app ya no es válido. Pida a su administrador el enlace nuevo; sus registros siguen guardados.","e");break}
  else if(x.error==="datos"){r.rech=true;await put("cola",r);msg("El servidor rechazó el registro de "+r.nombre+" por datos incompletos o no válidos. Avise a su administrador.","e")}
  else{if(manual)msg("El servidor está ocupado. Se reintentará solo; sus registros siguen guardados.","w");break}}
  if(manual&&!$("m").className)msg("Envío terminado.","o")}finally{busy=false;await pinta()}}
@@ -331,5 +353,5 @@ window.addEventListener("online",()=>{pinta();sync()});window.addEventListener("
 (async()=>{if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
  S=await get("meta","s");if(S){mostrar();refrescar()}else{$("login").hidden=false;
   /* Nombre del ayuntamiento en la pantalla de entrada */
-  if(!DEMO&&navigator.onLine)fetch(API).then(r=>r.json()).then(x=>{if(x&&x.mun){$("tl").textContent="Padrón de beneficiarios · "+x.mun;document.title="Padrón · "+x.mun}}).catch(()=>{})}})();
+  if(!DEMO&&navigator.onLine)fetch(API+(M?"?m="+M:"")).then(r=>r.json()).then(x=>{if(x&&x.mun){$("tl").textContent="Padrón de beneficiarios · "+x.mun;document.title="Padrón · "+x.mun}}).catch(()=>{})}})();
 </script></body></html>
