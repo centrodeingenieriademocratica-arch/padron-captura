@@ -20,6 +20,7 @@ Cambios vs la guía v4: (1) para personas nuevas se piden **fecha de nacimiento 
 1. Abra en el celular el enlace que le dieron (Chrome en Android, Safari en iPhone). Menú del navegador → *Agregar a pantalla de inicio*.
 2. **La primera vez, con señal**: escriba su clave y toque Entrar. Después funciona sin señal.
 3. **Dar de alta un apoyo** (una sola vez por apoyo): *Apoyos y eventos* → *Dar de alta un apoyo o evento* → nombre, programa, tipo, área, canal, monto y fecha → *Guardar apoyo*.
+   - **Apoyo periódico** (mismo programa, otra entrega o periodo): en *¿Es una nueva entrega…?* elija el apoyo que ya existe; se copian sus datos y solo escribe el periodo (ej. Noviembre 2026) y la fecha. Recibir otra entrega del mismo apoyo periódico no se marca como repetido; recibir dos veces la misma entrega, sí.
 4. **Registrar a una persona**: foto de la INE (frente y reverso) si la trae; revise lo que se llenó solo. CURP (si no lo tiene, déjelo vacío). Nombre, nacimiento, sexo, domicilio, colonia, CP, localidad, teléfono, grupos, foto.
 5. **Ubicación**: en el domicilio, al aire libre, toque *Tomar mi ubicación actual*. Si no se puede, *No puedo tomar la ubicación* y elija el motivo.
 6. **Apoyo**: marque *Registrar un apoyo entregado*, elija el apoyo de la lista, escriba el monto solo si lo pide, foto del apoyo.
