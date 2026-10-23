@@ -137,6 +137,9 @@ Lo hace el administrador (dueño de la hoja); el capturista nunca ve el padrón.
 4. Al terminar, cambia el **estado** de esa fila en **Capturas** de `Revisar` a `Revisada`. El servidor no lee ese valor, así que no afecta nada más.
 
 **Importar beneficiarios históricos (Excel), tal como los tenga cada área**
+**Lo más fácil: desde la app.** En la app, abre **Importar lista de Excel (histórico)**, elige el archivo (Excel o CSV, tal como venga) y, si la lista no trae columnas de programa o área, escríbelos una vez. Oprime **Importar al padrón**. La lista completa queda en una hoja nueva `Importar <archivo> · <código>` (el dato original, con todas sus columnas) y cada persona pasa al padrón. Si se corta la señal, **Seguir importando** continúa sin duplicar. Necesita señal. NO probado en Google real.
+
+**También desde la hoja:**
 1. En la hoja del ayuntamiento: **Archivo → Importar → Subir** el Excel → *Insertar hojas nuevas*. Cambia el nombre de esa hoja para que empiece con **Importar** (ej. `Importar DIF 2024`, `Importar Becas 2023`). Puede haber varias.
 2. No hay que reacomodar nada. La fila 1 debe tener los encabezados, como sea que los llamen. El sistema reconoce nombres distintos para lo mismo: CURP, apellido paterno y materno con nombre(s) o nombre completo, género o sexo, fecha de nacimiento, calle, núm. ext., domicilio o dirección, colonia o barrio, comunidad, localidad o junta auxiliar, CP, teléfono o celular, correo, grupo, programa, tipo de apoyo o concepto, área o dependencia, monto o importe, fecha de entrega, latitud y longitud.
 3. Abre esa hoja y usa el menú **Padrón → 3. Importar histórico**. Si la lista no trae columna de programa, pregunta una vez de qué programa es toda la lista y qué área lo entregó.

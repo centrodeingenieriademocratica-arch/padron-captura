@@ -15,6 +15,7 @@
    ubicar direcciones en el mapa (geocodificar, gratis, diario); ubicación escrita a mano o por dirección si se captura fuera del domicilio.
    v13 (NO PROBADO): al crear un apoyo se pregunta si es periódico (columna periodicidad); en nuevas entregas lo fundamental queda fijo.
    v12 (NO PROBADO): modo evento: el evento guarda lugar, ubicación y localidad una vez; Apoyos se ubica en el lugar de entrega.
+   v14 (NO PROBADO): importar Excel desde la app (acción importar): se guarda tal cual en una hoja Importar y pasa al padrón.
    v7 (NO PROBADO): los apoyos también se dan de alta desde la app (funciona sin señal); llegan a Eventos. */
 const COLS={
  Claves:["id","nombre","municipio","hash","activa"],
@@ -104,20 +105,30 @@ const CAMPOS_=[
  ["canal",h=>h.includes("canal")],
  ["monto",h=>h.includes("monto")||h.includes("importe")||h==="valor"||h.includes("cantidadentregada")],
  ["fecha",h=>h==="fecha"||h.includes("fechadeentrega")||h.includes("fechaentrega")||h.includes("fechadeapoyo")]];
-function importar(){const u=SpreadsheetApp.getUi(),A=SpreadsheetApp.getActive(),act=A.getActiveSheet();
- const im=/^importar/i.test(act.getName())?act:sh_("Importar");
- if(!im||im.getLastRow()<2)return u.alert("Primero importe su Excel: Archivo → Importar → Subir → Insertar hojas nuevas. Cambie el nombre de esa hoja para que empiece con Importar (ej. Importar DIF 2024), ábrala y corra este menú.");
- let mun=MUN_();if(!mun){const m=u.prompt("Municipio de esta lista");if(m.getSelectedButton()!=u.Button.OK)return;mun=m.getResponseText().trim();if(!mun)return}
- Object.keys(COLS).forEach(n=>{if(!sh_(n))A.insertSheet(n).appendRow(COLS[n])});cab_("Padron");cab_("Apoyos");
- const v=im.getDataRange().getValues(),hd=v[0].map(String),h=hd.map(norm_),col={},usada={};
- let rc=h.indexOf("resultado"),kc=h.indexOf("clavepadron");
+/* Qué columna del Excel corresponde a cada campo. */
+function mapa_(hd){const h=hd.map(norm_),col={},usada={},rc=h.indexOf("resultado"),kc=h.indexOf("clavepadron");
  CAMPOS_.forEach(([c,f])=>{col[c]=[];h.forEach((x,i)=>{if(x&&!usada[i]&&i!==rc&&i!==kc&&f(x)){col[c].push(i);usada[i]=1}})});
- /* "Nombre" junto a columnas de apellidos = solo los nombres de pila. */
- if(!col.nombre.length&&!col.paterno.length&&!col.apellidos.length)return u.alert("No encontré la columna del nombre. Encabezados de esta hoja: "+hd.join(", ")+".\n\nCambie el encabezado de la columna del nombre a Nombre y vuelva a correr.");
+ return{col,usada,rc,kc,nombre:!!(col.nombre.length||col.paterno.length||col.apellidos.length),programa:!!(col.programa.length||col.tipo.length),area:!!col.area.length}}
+/* Menú 3: la hoja que empieza con "Importar". */
+function importar(){const u=SpreadsheetApp.getUi(),act=SpreadsheetApp.getActiveSheet();
+ const im=/^importar/i.test(act.getName())?act:sh_("Importar");
+ if(!im||im.getLastRow()<2)return u.alert("Lo más fácil: en la app, menú Importar Excel. Desde aquí: Archivo → Importar → Subir → Insertar hojas nuevas; cambie el nombre de esa hoja para que empiece con Importar (ej. Importar DIF 2024), ábrala y corra este menú.");
+ let mun=MUN_();if(!mun){const m=u.prompt("Municipio de esta lista");if(m.getSelectedButton()!=u.Button.OK)return;mun=m.getResponseText().trim();if(!mun)return}
+ const hd=im.getRange(1,1,1,im.getLastColumn()).getValues()[0].map(String),m=mapa_(hd);
+ if(!m.nombre)return u.alert("No encontré la columna del nombre. Encabezados de esta hoja: "+hd.join(", ")+".\n\nCambie el encabezado de la columna del nombre a Nombre y vuelva a correr.");
  /* Si la lista no trae programa o área en columnas, toda la lista es de un mismo programa: se pregunta una vez. */
  let prL="",arL="";
- if(!col.programa.length&&!col.tipo.length){const p=u.prompt("Esta lista no tiene columna de programa","Si toda la lista es de un mismo programa o apoyo, escriba su nombre (ej. Despensas DIF 2024). Si no, deje vacío.",u.ButtonSet.OK_CANCEL);if(p.getSelectedButton()!=u.Button.OK)return;prL=p.getResponseText().trim()}
- if((prL||col.programa.length||col.tipo.length)&&!col.area.length){const p=u.prompt("Área responsable","¿Qué área entregó estos apoyos? (ej. DIF municipal). Puede dejarlo vacío.",u.ButtonSet.OK_CANCEL);if(p.getSelectedButton()!=u.Button.OK)return;arL=p.getResponseText().trim()}
+ if(!m.programa){const p=u.prompt("Esta lista no tiene columna de programa","Si toda la lista es de un mismo programa o apoyo, escriba su nombre (ej. Despensas DIF 2024). Si no, deje vacío.",u.ButtonSet.OK_CANCEL);if(p.getSelectedButton()!=u.Button.OK)return;prL=p.getResponseText().trim()}
+ if((prL||m.programa)&&!m.area){const p=u.prompt("Área responsable","¿Qué área entregó estos apoyos? (ej. DIF municipal). Puede dejarlo vacío.",u.ButtonSet.OK_CANCEL);if(p.getSelectedButton()!=u.Button.OK)return;arL=p.getResponseText().trim()}
+ const r=imp_(im,mun,prL,arL);
+ u.alert("Filas procesadas: "+r.hechas+". Personas nuevas: "+r.nuevas+". Apoyos: "+r.apoyos+"."+
+  "\n\nColumnas usadas: "+r.usadas.join("; ")+(r.sinUsar.length?"\nSe conservan en esta hoja sin usarse: "+r.sinUsar.join(", "):"")+
+  (r.falta?"\n\nFaltan filas: vuelva a correr Importar histórico para seguir.":"\n\nTerminado. No borre esta hoja: es el dato original. Para ubicar las direcciones en el mapa use Padrón → 6."))}
+
+/* Pasa al padrón las filas de la hoja im que aún no tienen resultado. prL/arL: programa y área de toda la lista si no vienen en columnas. */
+function imp_(im,mun,prL,arL){const A=SpreadsheetApp.getActive();
+ Object.keys(COLS).forEach(n=>{if(!sh_(n))A.insertSheet(n).appendRow(COLS[n])});cab_("Padron");cab_("Apoyos");
+ const v=im.getDataRange().getValues(),hd=v[0].map(String),m=mapa_(hd),col=m.col,usada=m.usada;let rc=m.rc,kc=m.kc;
  if(kc<0){kc=hd.length;im.getRange(1,kc+1).setValue("clave_padron")}
  if(rc<0){rc=Math.max(hd.length,kc+1);im.getRange(1,rc+1).setValue("resultado")}
  const L=LockService.getScriptLock();L.waitLock(30000);
@@ -148,11 +159,27 @@ function importar(){const u=SpreadsheetApp.getUi(),A=SpreadsheetApp.getActive(),
   if(nP.length)pd.getRange(pd.getLastRow()+1,1,nP.length,nP[0].length).setValues(nP);
   if(nA.length)ap.getRange(ap.getLastRow()+1,1,nA.length,nA[0].length).setValues(nA);
   if(res.length){im.getRange(2,kc+1,res.length,1).setValues(res.map(x=>[x[0]]));im.getRange(2,rc+1,res.length,1).setValues(res.map(x=>[x[1]]))}
-  const us=CAMPOS_.filter(([c])=>col[c].length).map(([c])=>col[c].map(j=>hd[j]).join("+")+" → "+c),no=hd.filter((x,j)=>x&&!usada[j]&&j!==rc&&j!==kc);
-  u.alert("Filas procesadas: "+hechas+". Personas nuevas: "+nP.length+". Apoyos: "+nA.length+"."+
-   "\n\nColumnas usadas: "+us.join("; ")+(no.length?"\nSe conservan en esta hoja sin usarse: "+no.join(", "):"")+
-   (i<v.length?"\n\nFaltan filas: vuelva a correr Importar histórico para seguir.":"\n\nTerminado. No borre esta hoja: es el dato original. Para ubicar las direcciones en el mapa use Padrón → 6."))}
+  return{hechas,nuevas:nP.length,apoyos:nA.length,falta:i<v.length,hoja,
+   usadas:CAMPOS_.filter(([c])=>col[c].length).map(([c])=>col[c].map(j=>hd[j]).join("+")+" → "+c),
+   sinUsar:hd.filter((x,j)=>x&&!usada[j]&&j!==rc&&j!==kc)}}
  finally{L.releaseLock()}}
+
+/* Importar desde la app: el Excel llega en partes (fila 0 = encabezados en la primera parte). Se guarda tal cual en una hoja
+   "Importar <archivo>" (dato original, todas las columnas) y se pasa al padrón. Sin filas = solo seguir procesando. */
+function impWeb_(q,d){const lote=String(d.lote||"").replace(/[^A-Z0-9]/gi,"").slice(0,8),nom=String(d.nombre||"Excel").replace(/[\[\]*?:\/\\']/g," ").trim().slice(0,60);
+ if(!lote)return{ok:false,error:"datos"};
+ const A=SpreadsheetApp.getActive(),nh="Importar "+nom+" · "+lote,f=Array.isArray(d.filas)?d.filas.slice(0,1000):[];
+ let im=A.getSheetByName(nh);
+ if(!im){if(!f.length)return{ok:false,error:"datos"};
+  const m=mapa_(f[0].map(x=>String(x??"")));if(!m.nombre)return{ok:false,error:"sinnombre",encabezados:f[0].map(String)};
+  im=A.insertSheet(nh);im.getRange(1,1,1,f[0].length).setNumberFormat("@")}
+ /* desde = filas que ya debería tener la hoja; si ya las tiene, esta parte llegó antes (reintento) y no se repite. */
+ if(f.length&&!(Number(d.desde)>=0&&im.getLastRow()>Number(d.desde))){const w=Math.max(...f.map(r=>Array.isArray(r)?r.length:0)),c=x=>x==null?"":typeof x==="number"?x:String(x).slice(0,500);
+  const rows=f.map(r=>{r=Array.isArray(r)?r.map(c):[];while(r.length<w)r.push("");return r});
+  const ini=im.getLastRow()+1;im.getRange(ini,1,rows.length,w).setNumberFormat("@").setValues(rows.map(r=>r.map(String)))}
+ const m=mapa_(im.getRange(1,1,1,im.getLastColumn()).getValues()[0].map(String));
+ const r=imp_(im,MUN_()||q.mun,m.programa?"":String(d.programa||"").trim().slice(0,120),m.area?"":String(d.area||"").trim().slice(0,120));
+ return{ok:true,hechas:r.hechas,nuevas:r.nuevas,apoyos:r.apoyos,falta:r.falta,usadas:r.usadas,sinUsar:r.sinUsar,programa:m.programa,area:m.area}}
 
 /* ---- Ubicar en el mapa (geocodificar) las personas sin coordenadas, a partir de su dirección. Gratis, con el servicio
    Maps de Apps Script (tiene límite diario; lo que falte se sigue al día siguiente: corre solo cada madrugada). ---- */
@@ -222,6 +249,7 @@ function doPost(e){
   if(d.a==="login")return json_({ok:true,nombre:q.nombre,mun:q.mun,cat:catalogo_(q.mun)});
   if(d.a==="buscar")return json_(buscar_(q,d.curp));
   if(d.a==="guardar")return json_(guardar_(q,d.reg||{}));
+  if(d.a==="importar")return json_(impWeb_(q,d));
   return json_({ok:false,error:"accion"})}
  catch(err){return json_({ok:false,error:"servidor"})}}
 
