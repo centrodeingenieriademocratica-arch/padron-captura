@@ -96,6 +96,13 @@ input[readonly]{opacity:.65}
 <details id="avt" hidden style="margin-top:14px"><summary>Ver aviso de privacidad</summary><div class="st" id="avx" style="white-space:pre-wrap;margin-top:6px"></div></details>
 <div class="ck" style="margin-top:14px"><input type="checkbox" id="av"><label for="av" style="margin:0;color:var(--ink)">Le informé a la persona el aviso de privacidad</label></div>
 <button onclick="guardar()" id="bs">Guardar registro</button></div>
+<details class="c"><summary><b>Importar lista de Excel (histórico)</b></summary>
+<div class="st">Suba la lista tal como la tenga (Excel o CSV). Se guarda completa en la hoja del ayuntamiento y cada persona pasa al padrón; quien ya estaba no se duplica. Necesita señal.</div>
+<label for="xf">Archivo</label><input id="xf" type="file" accept=".xlsx,.xls,.xlsm,.ods,.csv" onchange="xLee()">
+<div id="xhb" hidden><label for="xh">Hoja del archivo</label><select id="xh"></select></div>
+<label for="xp">Programa o apoyo de toda la lista (solo si el archivo no trae esa columna)</label><input id="xp" placeholder="Ej. Despensas DIF 2024">
+<label for="xa">Área que lo entregó (solo si el archivo no trae esa columna)</label><input id="xa" placeholder="Ej. DIF municipal">
+<button class="s" id="xb" onclick="xSube()">Importar al padrón</button><div class="st" id="xs" style="white-space:pre-wrap"></div></details>
 <div class="c"><h2>Mis últimos registros en este teléfono</h2><div id="hl"></div></div>
 <button class="s" onclick="salir()">Cerrar sesión</button>
 </section></main>
@@ -124,6 +131,7 @@ if(DEMO){const d=document.createElement("div");d.className="c";d.style.cssText="
 const demoPost=async b=>{await new Promise(r=>setTimeout(r,400));
  if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{aviso:["(Texto de ejemplo) Aquí aparecerá el aviso de privacidad del ayuntamiento, que el administrador escribe en la hoja Catalogos."],evento:[{id:"E1",n:"Despensa bimestral octubre",per:"Bimestral",lugar:"Explanada del ayuntamiento",ldir:"Portal Hidalgo 1, Centro",llat:19.0414,llng:-98.2063,loc:"Centro",programa:"Alimentación",tipo:"Despensa",eje:"Bienestar",area:"DIF municipal",canal:"Entrega en evento",monto:350,fecha:""},{id:"E2",n:"Beca escolar 2026",programa:"Becas",tipo:"Beca",eje:"Educación",area:"Desarrollo Social",canal:"Ventanilla",monto:"",fecha:""}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
  if(b.a==="buscar")return b.curp==="GOMA800101HPLRRN09"?{ok:true,existe:true,nombre:"Ana Gómez Martínez"}:{ok:true,existe:false};
+ if(b.a==="importar")return{ok:true,hechas:(b.filas||[]).length-(b.filas&&/nombre/i.test(b.filas[0].join(" "))?1:0),nuevas:0,apoyos:0,falta:false,programa:false,usadas:["(demostración)"],sinUsar:[]};
  return{ok:true}};
 const post=async b=>DEMO?demoPost(b):(await fetch(API,{method:"POST",body:JSON.stringify(b)})).json();
 const opts=(a,v="")=>`<option value="">${v}</option>`+(a||[]).map(x=>`<option>${esc(x)}</option>`).join("");
@@ -270,6 +278,38 @@ async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX|
  finally{$("bs").disabled=false}}
 
 /* Solo el error "datos" es rechazo definitivo. Cualquier otro fallo (servidor ocupado, tardado, página de error) se reintenta solo. */
+/* Importar Excel: se lee en el teléfono o la computadora y se manda en partes; el servidor reconoce las columnas. */
+let XW=null;
+async function xLee(){const f=$("xf").files[0],st=$("xs");XW=null;XS=null;$("xb").textContent="Importar al padrón";$("xhb").hidden=true;if(!f)return;st.textContent="Leyendo el archivo…";
+ try{for(const u of["https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js","https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"])if(!window.XLSX)await new Promise(ok=>{const e=document.createElement("script");e.src=u;e.onload=ok;e.onerror=ok;document.head.appendChild(e)});
+  if(!window.XLSX)throw 0;
+  XW=XLSX.read(await f.arrayBuffer(),{cellDates:true});
+  const hs=XW.SheetNames.filter(n=>{const w=XW.Sheets[n];return w&&w["!ref"]});
+  $("xh").innerHTML=hs.map(n=>`<option>${esc(n)}</option>`).join("");$("xhb").hidden=hs.length<2;
+  st.textContent=hs.length?"Listo. Revise programa y área y oprima Importar al padrón.":"El archivo no tiene datos."}
+ catch(e){st.textContent="No se pudo leer el archivo. "+(navigator.onLine?"Ábralo en Excel y guárdelo como .xlsx o .csv.":"Se necesita señal la primera vez.")}}
+const xd=x=>x instanceof Date?x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"):x;
+let XS=null; /* importación en curso: si se corta la señal, se sigue desde donde quedó */
+async function xSube(){const st=$("xs"),b=$("xb");if(!XW){st.textContent="Primero elija el archivo.";return}
+ if(!navigator.onLine){st.textContent="Sin señal. La importación necesita conexión.";return}
+ const f=$("xf").files[0],id=f.name+"|"+f.size+"|"+$("xh").value;
+ if(!XS||XS.id!==id){let v=XLSX.utils.sheet_to_json(XW.Sheets[$("xh").value||XW.SheetNames[0]],{header:1,raw:true,defval:""}).map(r=>r.map(xd));
+  const i0=v.findIndex(r=>r.filter(x=>String(x).trim()).length>=2);if(i0<0){st.textContent="No encontré encabezados en esa hoja.";return}
+  v=v.slice(i0);while(v.length&&v[v.length-1].every(x=>String(x).trim()===""))v.pop();
+  if(v.length<2){st.textContent="La hoja no tiene filas de datos.";return}
+  if(!confirm("Se van a importar "+(v.length-1)+" filas. ¿Continuar?"))return;
+  XS={id,v,i:0,lote:Math.random().toString(36).slice(2,8).toUpperCase(),nombre:f.name.replace(/\.[^.]+$/,""),T:{hechas:0,nuevas:0,apoyos:0}}}
+ const X=XS,n=X.v.length-1,suma=x=>["hechas","nuevas","apoyos"].forEach(c=>X.T[c]+=x[c]||0),
+  env=async e=>{for(let t=0;;t++){try{return await post(Object.assign({a:"importar",clave:S.clave,lote:X.lote,nombre:X.nombre,programa:$("xp").value,area:$("xa").value},e))}catch(er){if(t>=2)throw er;await new Promise(r=>setTimeout(r,3000))}}};
+ let x={ok:true};b.disabled=true;
+ try{while(X.i<X.v.length){x=await env({filas:X.v.slice(X.i,X.i+300),desde:X.i});if(!x.ok)break;suma(x);X.i+=300;st.textContent="Importando… "+X.T.hechas+" de "+n+" filas."}
+  while(x.ok&&x.falta){x=await env({});if(x.ok)suma(x)}
+  if(!x.ok){st.textContent=x.error==="sinnombre"?"No encontré la columna del nombre. Encabezados del archivo: "+(x.encabezados||[]).join(", ")+". Cambie en el Excel el encabezado del nombre a Nombre, guárdelo y vuelva a elegirlo.":x.error==="clave"?"Su clave ya no es válida.":"El servidor no pudo importar. Oprima Seguir importando; lo ya importado no se duplica.";if(x.error!=="servidor")XS=null}
+  else{st.textContent="Listo. Filas: "+X.T.hechas+". Personas nuevas: "+X.T.nuevas+". Apoyos: "+X.T.apoyos+"."+
+   (!x.programa&&!$("xp").value.trim()?"\nEl archivo no trae programa: solo se agregaron personas, sin apoyos.":"")+
+   "\nColumnas usadas: "+(x.usadas||[]).join("; ")+((x.sinUsar||[]).length?"\nSe guardaron sin usarse: "+x.sinUsar.join(", "):"");XS=null}}
+ catch(e){st.textContent="Se cortó la conexión con "+X.T.hechas+" de "+n+" filas. Oprima Seguir importando cuando haya señal; no se duplica."}
+ finally{b.disabled=false;b.textContent=XS?"Seguir importando":"Importar al padrón"}}
 async function sync(manual){if(busy||!S)return;if(!navigator.onLine){if(manual)msg("Sin señal. Los registros se enviarán cuando haya conexión.","w");return}
  busy=true;try{for(const r of await all("cola")){if(r.rech)continue;let x;
  try{x=await post({a:"guardar",clave:S.clave,reg:r})}catch(e){if(manual)msg("No se pudo conectar. Se reintentará.","w");break}
