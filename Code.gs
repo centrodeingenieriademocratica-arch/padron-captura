@@ -13,6 +13,7 @@
    otra entrega del mismo apoyo periódico ya no se marca como repetida.
    v11 (NO PROBADO): Excel histórico tal como venga (reconoce encabezados distintos, une apellidos, conserva todas las columnas);
    ubicar direcciones en el mapa (geocodificar, gratis, diario); ubicación escrita a mano o por dirección si se captura fuera del domicilio.
+   v12 (NO PROBADO): modo evento: el evento guarda lugar, ubicación y localidad una vez; Apoyos se ubica en el lugar de entrega.
    v7 (NO PROBADO): los apoyos también se dan de alta desde la app (funciona sin señal); llegan a Eventos. */
 const COLS={
  Claves:["id","nombre","municipio","hash","activa"],
@@ -21,7 +22,7 @@ const COLS={
  Padron:["clave","curp","folio","nombre","municipio","localidad","tel","direccion","lat","lng","grupos","primera_captura","estado","nacimiento","sexo","colonia","cp","correo","origen_ubicacion","precision"],
  Apoyos:["id","clave","municipio","programa","eje","area","monto","fecha","lat","lng","fotoBen","fotoApoyo","captura","aviso","evento","tipo","canal"],
  /* Cada área da de alta aquí sus apoyos; el capturista solo elige el nombre. Monto vacío = lo escribe el capturista. Fecha vacía = día de la captura. */
- Eventos:["id","municipio","nombre","programa","tipo","eje","area","canal","monto","fecha","activo","creado_por","creado","base","periodo"]
+ Eventos:["id","municipio","nombre","programa","tipo","eje","area","canal","monto","fecha","activo","creado_por","creado","base","periodo","lugar","lugar_direccion","lugar_lat","lugar_lng","localidad"]
 };
 /* Deben ser idénticas a las listas de la app. */
 const MOTIVOS=["Captura fuera del domicilio (oficina, evento)","GPS sin señal o no funciona","La persona no permitió tomar la ubicación","Domicilio de difícil acceso","Otro (explicar en Notas)"];
@@ -230,16 +231,20 @@ function buscar_(q,curp){curp=String(curp||"").toUpperCase().trim();
 function catalogo_(mun){const o={localidad:[],grupo:[],evento:[],aviso:[]},v=sh_("Catalogos").getDataRange().getValues();
  for(let i=1;i<v.length;i++)if((v[i][0]==="*"||v[i][0]===mun)&&o[v[i][1]])o[v[i][1]].push(v[i][2]);
  eventos_(mun).filter(e=>String(e[10]).toUpperCase()!=="NO").forEach(e=>o.evento.push({id:String(e[0]),n:String(e[2]),programa:String(e[3]),tipo:String(e[4]),
-  eje:String(e[5]),area:String(e[6]),canal:String(e[7]),monto:e[8]===""?"":Number(e[8]),fecha:e[9] instanceof Date?Utilities.formatDate(e[9],"America/Mexico_City","yyyy-MM-dd"):String(e[9]),base:String(e[13]||""),periodo:String(e[14]||"")}));return o}
+  eje:String(e[5]),area:String(e[6]),canal:String(e[7]),monto:e[8]===""?"":Number(e[8]),fecha:e[9] instanceof Date?Utilities.formatDate(e[9],"America/Mexico_City","yyyy-MM-dd"):String(e[9]),base:String(e[13]||""),periodo:String(e[14]||""),lugar:String(e[15]||""),ldir:String(e[16]||""),llat:e[17]===""?"":Number(e[17]),llng:e[18]===""?"":Number(e[18]),loc:String(e[19]||"")}));return o}
 
 /* Alta de un apoyo desde la app. Si ya existe ese id no hace nada (reenvíos). */
 function crearEv_(q,v){v=v||{};const t=x=>String(x==null?"":x).trim().slice(0,200),id=t(v.id),n=t(v.n),mo=v.monto===""||v.monto==null?"":Number(v.monto),fe=t(v.fecha);
  if(!/^EV-[A-Z0-9]{4,20}$/.test(id)||!n||(mo!==""&&!(mo>=0))||(fe&&!/^\d{4}-\d{2}-\d{2}$/.test(fe)))return false;
  const L=LockService.getScriptLock();L.waitLock(25000);
  try{let s=sh_("Eventos");if(!s){s=SpreadsheetApp.getActive().insertSheet("Eventos");s.appendRow(COLS.Eventos);s.setFrozenRows(1)}cab_("Eventos");
-  if(!eventos_(q.mun).some(e=>String(e[0])===id))s.appendRow([id,q.mun,n,t(v.programa),t(v.tipo),t(v.eje),t(v.area),t(v.canal),mo,fe,"SI",q.id,new Date(),t(v.base),t(v.periodo)]);return true}
+  if(!eventos_(q.mun).some(e=>String(e[0])===id)){let la=Number(v.llat),lo=Number(v.llng);
+   /* Lugar de entrega sin coordenadas pero con dirección: se ubica una sola vez aquí. */
+   if(!enMx_(la,lo)){la="";lo="";if(t(v.ldir))try{const x=Maps.newGeocoder().setRegion("mx").setLanguage("es").geocode([t(v.ldir),t(v.loc),MUN_()||q.mun,P_().getProperty("ESTADO")||"Puebla","México"].filter(String).join(", "));
+    if(x.status==="OK"&&x.results.length&&enMx_(x.results[0].geometry.location.lat,x.results[0].geometry.location.lng)){la=x.results[0].geometry.location.lat;lo=x.results[0].geometry.location.lng}}catch(e){}}
+   s.appendRow([id,q.mun,n,t(v.programa),t(v.tipo),t(v.eje),t(v.area),t(v.canal),mo,fe,"SI",q.id,new Date(),t(v.base),t(v.periodo),t(v.lugar),t(v.ldir),la,lo,t(v.loc)])}return true}
  finally{L.releaseLock()}}
-const eventos_=mun=>{const s=sh_("Eventos");return s&&s.getLastRow()>1?s.getRange(2,1,s.getLastRow()-1,15).getValues().filter(e=>e[0]!==""&&(e[1]==="*"||e[1]===mun)):[]};
+const eventos_=mun=>{const s=sh_("Eventos");return s&&s.getLastRow()>1?s.getRange(2,1,s.getLastRow()-1,20).getValues().filter(e=>e[0]!==""&&(e[1]==="*"||e[1]===mun)):[]};
 
 function foto_(b64,nombre){if(!b64)return"";const m=String(b64).split(",")[1]||b64;
  return DriveApp.getFolderById(P_().getProperty("CARPETA")).createFile(Utilities.newBlob(Utilities.base64Decode(m),"image/jpeg",nombre+".jpg")).getId()}
@@ -298,7 +303,9 @@ function guardar_(q,r){
   const fam={};eventos_(q.mun).forEach(e=>fam[String(e[0])]=String(e[13]||"")||String(e[0]));const F=x=>x?fam[x]||x:"";
   const k=clave+"|"+String(r.programa).toLowerCase()+"|"+yr_(r.fecha),ide=String(r.evento||"");let aviso="";
   if(av.some(a=>a[0]+"|"+String(a[2]).toLowerCase()+"|"+yr_(a[6])===k&&(!ide||String(a[13])===ide||F(String(a[13]))!==F(ide)))){aviso="Duplicado probable: mismo programa y año";estado="Revisar"}
-  ap.appendRow([r.id,clave,mun,r.programa,r.eje||"",r.area||"",r.monto||"",r.fecha||"",lat,lng,ben,apo,r.id,aviso,r.evento||"",r.tipo||"",r.canal||""])
+  /* El apoyo se ubica donde se entregó: el lugar del evento si tiene, si no el domicilio. */
+  const eLa=ev&&ev[17]!==""&&ev[17]!=null?ev[17]:lat,eLo=ev&&ev[18]!==""&&ev[18]!=null?ev[18]:lng;
+  ap.appendRow([r.id,clave,mun,r.programa,r.eje||"",r.area||"",r.monto||"",r.fecha||"",eLa,eLo,ben,apo,r.id,aviso,r.evento||"",r.tipo||"",r.canal||""])
  }
  sc.appendRow([r.id,ts,q.id,mun,estado,curp,folio,nombre,r.localidad||"",r.tel||"",r.direccion||"",lat,lng,grupos,
   r.programa||"",r.eje||"",r.area||"",r.monto||"",r.fecha||"",ben,apo,ine,r.notas||"",motivo,nac,sexo,r.evento||"",r.tipo||"",r.canal||"",...ext,iner,ori]);
