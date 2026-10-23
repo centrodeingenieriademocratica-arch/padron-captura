@@ -22,7 +22,7 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 #ex{border-color:var(--ok);margin:12px 0 0}
 </style></head><body><main>
 <div id="m"></div>
-<section id="login" class="c" hidden><h1>Captura del padrón</h1>
+<section id="login" class="c" hidden><h1 id="tl">Padrón de beneficiarios</h1>
 <label for="k">Su clave de capturista</label><input id="k" autocomplete="off" autocapitalize="characters" spellcheck="false">
 <button onclick="entrar()">Entrar</button><p class="st">Necesita señal solo para entrar la primera vez.</p></section>
 <section id="app" hidden>
@@ -77,6 +77,7 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 <div id="mob" hidden><label for="mo">Monto entregado ($)</label><input id="mo" type="number" inputmode="decimal" min="0"></div>
 <label>Foto del apoyo entregado</label><input id="fa" type="file" accept="image/*" capture="environment"></div>
 <label for="no">Notas (opcional)</label><input id="no">
+<details id="avt" hidden style="margin-top:14px"><summary>Ver aviso de privacidad</summary><div class="st" id="avx" style="white-space:pre-wrap;margin-top:6px"></div></details>
 <div class="ck" style="margin-top:14px"><input type="checkbox" id="av"><label for="av" style="margin:0;color:var(--ink)">Le informé a la persona el aviso de privacidad</label></div>
 <button onclick="guardar()" id="bs">Guardar registro</button></div>
 <div class="c"><h2>Mis últimos registros en este teléfono</h2><div id="hl"></div></div>
@@ -88,6 +89,11 @@ button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
 const API=(()=>{const ok=u=>/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(u||""),p=new URLSearchParams(location.search).get("srv");
  let g=null;try{if(ok(p))localStorage.setItem("srv",p);g=localStorage.getItem("srv")}catch(e){}
  return ok(p)?p:ok(g)?g:"PEGUE_AQUI_LA_URL_DE_LA_APP_WEB"})();
+/* El enlace siempre lleva la dirección del servidor: así, al "Agregar a pantalla de inicio" (sobre todo en iPhone, que guarda aparte), la app abre conectada. */
+if(!API.startsWith("PEGUE")){const q=new URLSearchParams(location.search);if(q.get("srv")!==API){q.set("srv",API);history.replaceState(null,"",location.pathname+"?"+q)}
+ try{const m={name:"Padrón de beneficiarios",short_name:"Padrón",start_url:location.origin+location.pathname+"?srv="+encodeURIComponent(API),display:"standalone",background_color:"#EEF1F4",theme_color:"#0F6B5C",lang:"es",
+  icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230F6B5C'/%3E%3Cpath d='M30 52l14 14 28-30' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",sizes:"any",type:"image/svg+xml"}]};
+  document.querySelector('link[rel="manifest"]').href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/manifest+json"}))}catch(e){}}
 const MOTIVOS=["GPS sin señal o no funciona","La persona no permitió tomar la ubicación","Domicilio de difícil acceso","Otro (explicar en Notas)"];
 const SEXOS=["Mujer","Hombre"];
 const CURP=/^[A-Z]{4}\d{6}[HM][A-Z]{2}[B-DF-HJ-NP-TV-Z]{3}[A-Z\d]\d$/,$=i=>document.getElementById(i),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -100,7 +106,7 @@ function msg(t,c){const m=$("m");m.className=c||"";m.textContent=t;if(t)window.s
 const DEMO=API.startsWith("PEGUE");
 if(DEMO){const d=document.createElement("div");d.className="c";d.style.cssText="border-color:var(--wn);color:var(--wn)";d.textContent="MODO DEMOSTRACIÓN: use cualquier clave. Los datos no se envían a ningún servidor. Para probar que ya está registrada una persona, escriba el CURP GOMA800101HPLRRN09.";document.querySelector("main").prepend(d)}
 const demoPost=async b=>{await new Promise(r=>setTimeout(r,400));
- if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{evento:[{id:"E1",n:"Despensa bimestral octubre",programa:"Alimentación",tipo:"Despensa",eje:"Bienestar",area:"DIF municipal",canal:"Entrega en evento",monto:350,fecha:""},{id:"E2",n:"Beca escolar 2026",programa:"Becas",tipo:"Beca",eje:"Educación",area:"Desarrollo Social",canal:"Ventanilla",monto:"",fecha:""}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
+ if(b.a==="login")return{ok:true,nombre:"María López (demostración)",mun:"Municipio de ejemplo",cat:{aviso:["(Texto de ejemplo) Aquí aparecerá el aviso de privacidad del ayuntamiento, que el administrador escribe en la hoja Catalogos."],evento:[{id:"E1",n:"Despensa bimestral octubre",programa:"Alimentación",tipo:"Despensa",eje:"Bienestar",area:"DIF municipal",canal:"Entrega en evento",monto:350,fecha:""},{id:"E2",n:"Beca escolar 2026",programa:"Becas",tipo:"Beca",eje:"Educación",area:"Desarrollo Social",canal:"Ventanilla",monto:"",fecha:""}],localidad:["Centro","San Miguel","La Cañada"],grupo:["Adulto mayor","Persona con discapacidad","Madre soltera"]}};
  if(b.a==="buscar")return b.curp==="GOMA800101HPLRRN09"?{ok:true,existe:true,nombre:"Ana Gómez Martínez"}:{ok:true,existe:false};
  return{ok:true}};
 const post=async b=>DEMO?demoPost(b):(await fetch(API,{method:"POST",body:JSON.stringify(b)})).json();
@@ -157,7 +163,8 @@ async function entrar(){const k=$("k").value.trim().toUpperCase();if(!k)return;
  try{const x=await post({a:"login",clave:k});if(!x.ok){msg("Clave no válida. Verifíquela con su administrador.","e");return}
  S={clave:k,nombre:x.nombre,mun:x.mun,cat:x.cat};await put("meta",S,"s");msg("");mostrar()}
  catch(e){msg("No se pudo conectar. Intente de nuevo con señal.","e")}}
-function mostrar(){$("login").hidden=true;$("app").hidden=false;$("quien").textContent=S.nombre;$("mun").textContent=S.mun;
+function mostrar(){$("login").hidden=true;$("app").hidden=false;$("quien").textContent=S.nombre;$("mun").textContent=S.mun;document.title="Padrón · "+S.mun;
+ const av=(S.cat.aviso||[]).join("\n\n");$("avx").textContent=av;$("avt").hidden=!av;
  $("dl-loc").innerHTML=opts(S.cat.localidad).replace('<option value=""></option>',"");
  pintaEv();
  $("mg").innerHTML=opts(MOTIVOS,"Elija el motivo");$("sx").innerHTML=opts(SEXOS,"Elija");
@@ -234,5 +241,7 @@ async function salir(){const q=await all("cola");if(q.length&&!confirm("Hay "+q.
  await del("meta","s");S=null;$("app").hidden=true;$("login").hidden=false;$("k").value=""}
 window.addEventListener("online",()=>{pinta();sync()});window.addEventListener("offline",pinta);setInterval(()=>{if(S)sync()},60000);
 (async()=>{if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
- S=await get("meta","s");if(S){mostrar();refrescar()}else $("login").hidden=false})();
+ S=await get("meta","s");if(S){mostrar();refrescar()}else{$("login").hidden=false;
+  /* Nombre del ayuntamiento en la pantalla de entrada */
+  if(!DEMO&&navigator.onLine)fetch(API).then(r=>r.json()).then(x=>{if(x&&x.mun){$("tl").textContent="Padrón de beneficiarios · "+x.mun;document.title="Padrón · "+x.mun}}).catch(()=>{})}})();
 </script></body></html>
