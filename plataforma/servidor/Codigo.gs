@@ -155,7 +155,7 @@ function creaUsuario_(quien, nombre, rol, areas) {
   bitacora_(quien, 'alta_usuario', 'Usuarios', id, 'rol', '', rol);
   return { id, token, enlace: enlace_(token, nombre) };
 }
-/* El enlace personal. Con dirección corta del Centro (Config URL_CORTA, ej. https://cid-padron-atlixco.web.app):
+/* El enlace personal. Con dirección corta del Centro (Config URL_CORTA, ej. https://cid-benefi-atlixco.web.app):
    dirección corta + nombre de pila + código, en minúsculas. Si no, la dirección /exec del script. */
 function slug_(n) {
   return String(n || '').split(/\s+/)[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);

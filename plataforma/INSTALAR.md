@@ -21,12 +21,12 @@ Se hace en computadora, una sola vez.
 
 ## Dirección propia del Centro (enlace corto con nombre)
 
-Igual que en estructura: cada ayuntamiento tiene su dirección `https://cid-padron-<municipio>.web.app` en el proyecto de Firebase «CID enlaces» (cuenta del Centro). La app se abre dentro de esa página, así que el celular siempre muestra la dirección del Centro, con su logo y su título al mandarla por WhatsApp. Los enlaces quedan así: `https://cid-padron-atlixco.web.app/ana-<código>`.
+Igual que en estructura: cada ayuntamiento tiene su dirección `https://cid-benefi-<municipio>.web.app` en el proyecto de Firebase «CID enlaces» (cuenta del Centro). La app se abre dentro de esa página, así que el celular siempre muestra la dirección del Centro, con su logo y su título al mandarla por WhatsApp. Los enlaces quedan así: `https://cid-benefi-atlixco.web.app/ana-<código>`.
 
 1. En `plataforma/enlaces/sitios.json` agregar un renglón con el sitio, el municipio y la dirección `/exec`.
-2. Una sola vez por ayuntamiento: `firebase hosting:sites:create cid-padron-<municipio> --project cid-enlaces`.
+2. Una sola vez por ayuntamiento: `firebase hosting:sites:create cid-benefi-<municipio> --project cid-enlaces`.
 3. `node plataforma/enlaces/armar.js` y luego, desde `plataforma/enlaces`, `firebase deploy --only hosting`.
-4. En la hoja del ayuntamiento, pestaña Config, poner la clave `URL_CORTA` con `https://cid-padron-<municipio>.web.app`. Desde ese momento los enlaces nuevos (y los botones de WhatsApp) salen con la dirección corta. Los enlaces viejos siguen sirviendo.
+4. En la hoja del ayuntamiento, pestaña Config, poner la clave `URL_CORTA` con `https://cid-benefi-<municipio>.web.app`. Desde ese momento los enlaces nuevos (y los botones de WhatsApp) salen con la dirección corta. Los enlaces viejos siguen sirviendo.
 
 ## Sin señal
 

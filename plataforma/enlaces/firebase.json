@@ -1,8 +1,8 @@
 {
   "hosting": [
     {
-      "target": "cid-padron-atlixco",
-      "public": "publico/cid-padron-atlixco",
+      "target": "cid-benefi-atlixco",
+      "public": "publico/cid-benefi-atlixco",
       "cleanUrls": true,
       "rewrites": [
         {
