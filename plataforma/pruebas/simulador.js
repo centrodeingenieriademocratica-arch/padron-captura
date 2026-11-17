@@ -45,8 +45,8 @@ class Hoja {
   getRange(r, c, nr, nc) { return new Rango(this, r, c, nr || 1, nc || 1); }
   setFrozenRows() {}
 }
-function crear() {
-  const hojas = {}, props = {};
+function crear(opciones = {}) {
+  const hojas = {}, props = {}, cache = {};
   const libro = {
     getSheetByName: n => hojas[n] || null,
     insertSheet: n => (hojas[n] = new Hoja(n)),
@@ -68,13 +68,24 @@ function crear() {
         return p;
       }
     },
-    ContentService: { MimeType: { JSON: 'json' }, createTextOutput: s => ({ setMimeType() { return this; }, contenido: s }) }
+    ContentService: { MimeType: { JSON: 'json' }, createTextOutput: s => ({ setMimeType() { return this; }, contenido: s }) },
+    HtmlService: { createHtmlOutput: s => { const o = { contenido: s, setTitle(t) { o.titulo = t; return o; }, addMetaTag() { return o; } }; return o; } },
+    CacheService: { getScriptCache: () => ({ get: k => cache[k] || null, put: (k, v) => { cache[k] = v; }, remove: k => { delete cache[k]; } }) },
+    ScriptApp: { getService: () => ({ getUrl: () => null }) },
+    /* GitHub simulado: lee los archivos de plataforma/app. opciones.sinRed simula GitHub caído. */
+    UrlFetchApp: { fetch: (url) => {
+      const f = path.join(__dirname, '..', 'app', url.split('/').pop());
+      const ok = !opciones.sinRed && fs.existsSync(f);
+      return { getResponseCode: () => ok ? 200 : 404, getContentText: () => ok ? fs.readFileSync(f, 'utf8') : '' };
+    } }
   };
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'servidor', 'Codigo.gs'), 'utf8'), ctx);
   /* Llamada como la haría la app: POST con JSON. */
   ctx.post = (body) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(body) } }).contenido);
-  ctx.hojas = hojas;
+  ctx.hojas = hojas; ctx.cache = cache; ctx.opciones = opciones;
+  /* Abrir la dirección /exec como en un navegador: devuelve el HTML de la app. */
+  ctx.abrir = (parametros) => ctx.doGet({ parameter: parametros || {} }).contenido;
   return ctx;
 }
 module.exports = { crear };

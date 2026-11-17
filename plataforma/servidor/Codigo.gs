@@ -1,13 +1,13 @@
 /* PADRÓN ÚNICO MUNICIPAL DE BENEFICIARIOS · Servidor (Google Apps Script)
    Fase 1, paso 1: modelo de datos y servidor base.
    - Una hoja por ayuntamiento, en una cuenta de Google gratuita del ayuntamiento (la consultora entra como editora).
-   - La app instalable (Firebase Hosting) captura sin señal y manda lotes de operaciones a doPost.
+   - La app la sirve este mismo script en su dirección /exec?u=CODIGO (doGet) y llama a api() con google.script.run; captura sin señal y manda lotes de operaciones.
    - Cada operación trae su propio id (op_id): si llega dos veces, se responde lo mismo y no se duplica.
    - Nada se borra: los cambios quedan en Bitacora con el valor anterior.
    - Quien captura solo recibe nombres (y localidad) de lo que busca; nunca el padrón completo.
    Probado solo en el simulador (plataforma/pruebas/servidor.test.js). NO PROBADO en Google real. */
 
-const VERSION = 'F1.1';
+const VERSION = 'F1.2';
 const TZ = 'America/Mexico_City';
 
 /* ---------- Modelo de datos: una pestaña por tabla. Las columnas nuevas se agregan siempre al final. ---------- */
@@ -149,27 +149,35 @@ function creaUsuario_(quien, nombre, rol, areas) {
   bitacora_(quien, 'alta_usuario', 'Usuarios', id, 'rol', '', rol);
   return { id, token, enlace: enlace_(token) };
 }
-function enlace_(token) { const app = config_('URL_APP'); return app ? app.replace(/\/?$/, '/') + '?u=' + token : token; }
+/* El enlace personal: el enlace corto del ayuntamiento si lo tiene (Config URL_APP), si no la dirección /exec del script. */
+function enlace_(token) {
+  let app = config_('URL_APP');
+  if (!app) { try { app = ScriptApp.getService().getUrl() || ''; } catch (e) { app = ''; } }
+  if (!app) return token;
+  return /\/exec$/.test(app) ? app + '?u=' + token : app.replace(/\/?$/, '/') + '?u=' + token;
+}
 
 /* ---------- Instalación (una vez por ayuntamiento, desde la hoja) ---------- */
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('Padrón')
     .addItem('1. Configurar este ayuntamiento', 'configurar')
     .addItem('2. Nuevo enlace de administrador', 'enlaceAdmin')
+    .addItem('3. Actualizar la app ahora', 'actualizarApp')
     .addToUi();
 }
 function configurar() {
   const ui = SpreadsheetApp.getUi();
   const mun = ui.prompt('Nombre del ayuntamiento', 'Como lo verán sus usuarios. Ej.: Ayuntamiento de Chiautzingo', ui.ButtonSet.OK_CANCEL);
   if (mun.getSelectedButton() !== ui.Button.OK) return;
-  const app = ui.prompt('Dirección de la app', 'La dirección de Firebase Hosting de este ayuntamiento (ej. https://padron-chiautzingo.web.app). Puede dejarlo vacío y ponerlo después en la pestaña Config.', ui.ButtonSet.OK_CANCEL);
+  const app = ui.prompt('Enlace corto (opcional)', 'Si el ayuntamiento tiene enlace corto (ej. https://padron-chiautzingo.web.app), péguelo. Si no, déjelo vacío: se usará la dirección /exec de la app web.', ui.ButtonSet.OK_CANCEL);
   const r = instalar_(mun.getResponseText(), app.getSelectedButton() === ui.Button.OK ? app.getResponseText() : '');
   ui.alert('Listo.\n\nEnlace del administrador del ayuntamiento:\n' + r.enlace +
     '\n\nEntréguelo en persona; no se vuelve a mostrar. Con él se crean los enlaces de responsables y capturistas.');
 }
 function enlaceAdmin() {
+  const ui = SpreadsheetApp.getUi(); /* solo desde la hoja: desde la web falla aquí, antes de crear nada */
   const r = creaUsuario_(null, 'Administrador', 'admin', []);
-  SpreadsheetApp.getUi().alert('Enlace nuevo de administrador:\n' + r.enlace + '\n\nEntréguelo en persona; no se vuelve a mostrar.');
+  ui.alert('Enlace nuevo de administrador:\n' + r.enlace + '\n\nEntréguelo en persona; no se vuelve a mostrar.');
 }
 /* Crea las pestañas, llena catálogos vacíos y devuelve el enlace del primer administrador. */
 function instalar_(municipio, urlApp) {
@@ -184,17 +192,74 @@ function instalar_(municipio, urlApp) {
 
 /* ---------- Entrada web ---------- */
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
-function doGet() { return json_({ ok: true, servicio: 'padron-municipal', version: VERSION, municipio: config_('MUNICIPIO') }); }
-function doPost(e) {
+/* La dirección /exec del ayuntamiento ES la app (como la herramienta de estructura): cada quien entra con /exec?u=SU_CODIGO.
+   ?estado=1 responde solo si el servidor está vivo. */
+function doGet(e) {
+  const p = (e && e.parameter) || {};
+  if (p.estado) return json_({ ok: true, servicio: 'padron-municipal', version: VERSION, municipio: config_('MUNICIPIO') });
+  const token = String(p.u || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80);
+  return HtmlService.createHtmlOutput(paginaApp_(token))
+    .setTitle(config_('MUNICIPIO') || 'Padrón de beneficiarios')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+}
+/* Lo que la app llama desde la página servida por Apps Script (google.script.run.api). */
+function api(d) {
   try {
-    const d = JSON.parse(e.postData.contents);
-    const u = usuario_(d.token);
-    if (!u) return json_({ ok: false, error: 'enlace' });
-    return json_(atiende_(u, d));
+    const u = usuario_(d && d.token);
+    if (!u) return { ok: false, error: 'enlace' };
+    return JSON.parse(JSON.stringify(atiende_(u, d)));
   } catch (err) {
-    return json_({ ok: false, error: 'servidor' });
+    return { ok: false, error: 'servidor' };
   }
 }
+function doPost(e) {
+  try { return json_(api(JSON.parse(e.postData.contents))); } catch (err) { return json_({ ok: false, error: 'servidor' }); }
+}
+
+/* ---------- La página de la app ----------
+   Se toma de GitHub (rama main) y se guarda 6 horas. Así, cuando la app mejora, todos los ayuntamientos la reciben
+   sin volver a pegar nada. Si GitHub no responde, se usa la última copia buena guardada en el script. */
+const FUENTE_APP = 'https://raw.githubusercontent.com/centrodeingenieriademocratica-arch/padron-captura/main/plataforma/app/';
+function paginaApp_(token) {
+  const conf = '<script>window.PADRON = ' + JSON.stringify({ gas: true, token, municipio: config_('MUNICIPIO') }) + ';</script>';
+  return armaApp_().replace('<!--CONFIG-->', conf);
+}
+function armaApp_() {
+  const cache = CacheService.getScriptCache(), ya = cache.get('app_html');
+  if (ya) return ya;
+  let html = '';
+  try {
+    const base = config_('FUENTE_APP') || FUENTE_APP, trae = f => {
+      const r = UrlFetchApp.fetch(base + f, { muteHttpExceptions: true });
+      if (r.getResponseCode() !== 200) throw new Error(f);
+      return r.getContentText('UTF-8');
+    };
+    const index = trae('index.html'), js = trae('app.js').replace(/<\/script/gi, '<\\/script');
+    html = index.replace(/<link rel="manifest"[^>]*>/, '')
+      .replace('<script src="config.js"></script>', '<!--CONFIG-->')
+      .replace('<script src="app.js"></script>', () => '<script>' + js + '</script>');
+    if (html.indexOf('<!--CONFIG-->') < 0 || html.indexOf('src="app.js"') >= 0) throw new Error('forma');
+    guardaCopia_(html);
+  } catch (err) {
+    html = leeCopia_();
+    if (!html) return '<p style="font:16px sans-serif;padding:20px">No se pudo cargar la app. Intente de nuevo en unos minutos.</p><!--CONFIG-->';
+  }
+  try { cache.put('app_html', html, 21600); } catch (err) {}
+  return html;
+}
+/* Copia de respaldo en pedazos (cada propiedad guarda hasta 9 KB). */
+function guardaCopia_(html) {
+  const pr = PropertiesService.getScriptProperties(), n = Math.ceil(html.length / 8000);
+  for (let i = 0; i < n; i++) pr.setProperty('APP_' + i, html.slice(i * 8000, (i + 1) * 8000));
+  pr.setProperty('APP_N', String(n));
+}
+function leeCopia_() {
+  const pr = PropertiesService.getScriptProperties(), n = Number(pr.getProperty('APP_N') || 0);
+  let h = ''; for (let i = 0; i < n; i++) h += pr.getProperty('APP_' + i) || '';
+  return h;
+}
+/* Menú: borra la copia guardada para que la app se tome de nuevo de GitHub en este momento. */
+function actualizarApp() { CacheService.getScriptCache().remove('app_html'); SpreadsheetApp.getUi().alert('Listo. La próxima vez que alguien abra la app tendrá la versión más reciente.'); }
 function atiende_(u, d) {
   switch (d.a) {
     case 'login': return login_(u);

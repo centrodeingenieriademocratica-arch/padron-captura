@@ -2,8 +2,10 @@
    Todo lo que se captura se guarda como "operación" en el teléfono (IndexedDB) y se envía en lotes al servidor
    del ayuntamiento. Cada operación lleva su op_id: si se reenvía, el servidor no duplica. */
 'use strict';
-const SRV = (window.PADRON || {}).servidor || '';
-const DEMO = !/^https?:|^\//.test(SRV) || SRV.indexOf('PEGUE') >= 0;
+const CONF = window.PADRON || {}, SRV = CONF.servidor || '';
+/* GAS: la página la sirve el Apps Script del ayuntamiento (su dirección /exec). Si no, se usa la dirección del servidor de config.js. */
+const GAS = !!CONF.gas && typeof google !== 'undefined' && google.script && google.script.run;
+const DEMO = !GAS && (!/^https?:|^\//.test(SRV) || SRV.indexOf('PEGUE') >= 0);
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const CURP_RE = /^[A-Z]{4}\d{6}[HM][A-Z]{2}[B-DF-HJ-NP-TV-Z]{3}[A-Z\d]\d$/;
@@ -30,6 +32,7 @@ function msg(t, c) { const m = $('m'); m.textContent = t; m.className = t ? (c |
 /* ---------- Servidor ---------- */
 async function post(b) {
   if (DEMO) return demo(b);
+  if (GAS) return new Promise((ok, er) => google.script.run.withSuccessHandler(ok).withFailureHandler(er).api(Object.assign({ token: TOKEN }, b)));
   const r = await fetch(SRV, { method: 'POST', body: JSON.stringify(Object.assign({ token: TOKEN }, b)) });
   return r.json();
 }
@@ -353,7 +356,7 @@ async function bajaUsuario(id) { const m = prompt('Motivo de la baja (ej. dejó 
 (async function arranque() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
-  const q = new URLSearchParams(location.search), u = (q.get('u') || '').trim();
+  const q = new URLSearchParams(location.search), u = (CONF.token || q.get('u') || '').trim();
   try { if (u) { localStorage.setItem('token', u); history.replaceState(null, '', location.pathname); } TOKEN = localStorage.getItem('token') || ''; S = JSON.parse(localStorage.getItem('sesion') || 'null'); } catch (e) {}
   if (DEMO && !TOKEN) TOKEN = 'DEMO';
   if (!TOKEN) return ir('v-sin', true);

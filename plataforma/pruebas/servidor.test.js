@@ -170,6 +170,29 @@ prueba('capturista pide corrección y queda en bitácora', () => {
   assert.ok(r.resultados[0].ok);
   assert.ok(S.hojas.Bitacora.datos.some(f => f[2] === 'pide_correccion' && f[4] === 'T-AAAA1111'));
 });
+prueba('la dirección /exec sirve la app completa con el enlace de la persona', () => {
+  const h = S.abrir({ u: adm });
+  assert.ok(h.indexOf('id="v-bus"') > 0, 'trae las pantallas');
+  assert.ok(h.indexOf('google.script.run') > 0, 'trae app.js adentro');
+  assert.ok(h.indexOf('src="app.js"') < 0 && h.indexOf('src="config.js"') < 0);
+  assert.ok(h.indexOf('"token":"' + adm + '"') > 0);
+  assert.ok(h.indexOf('"gas":true') > 0);
+});
+prueba('el código del enlace se limpia antes de ponerlo en la página', () => {
+  const h = S.abrir({ u: 'abc"</script><b>' });
+  assert.ok(h.indexOf('"token":"abcscriptb"') > 0);
+});
+prueba('?estado=1 responde que el servidor vive', () => assert.ok(JSON.parse(S.abrir({ estado: 1 })).ok));
+prueba('si GitHub no responde, se usa la última copia buena', () => {
+  S.opciones.sinRed = true; delete S.cache.app_html;
+  assert.ok(S.abrir({ u: adm }).indexOf('id="v-bus"') > 0);
+  S.opciones.sinRed = false;
+});
+prueba('la app llama al servidor con google.script.run.api', () => {
+  assert.strictEqual(S.api({ token: adm, a: 'login' }).ok, true);
+  assert.strictEqual(S.api({ token: 'NO', a: 'login' }).error, 'enlace');
+  assert.strictEqual(S.api(null).error, 'enlace');
+});
 prueba('baja de usuario: su enlace deja de servir', () => {
   const t = nuevo('capturista', ['DIF']);
   const id = S.post({ token: t, a: 'login' }).usuario.id;
