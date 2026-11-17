@@ -151,7 +151,7 @@ function creaUsuario_(quien, nombre, rol, areas) {
 }
 /* El enlace personal: el enlace corto del ayuntamiento si lo tiene (Config URL_APP), si no la dirección /exec del script. */
 function enlace_(token) {
-  let app = config_('URL_APP');
+  let app = config_('URL_APP') || config_('URL_EXEC');
   if (!app) { try { app = ScriptApp.getService().getUrl() || ''; } catch (e) { app = ''; } }
   if (!app) return token;
   return /\/exec$/.test(app) ? app + '?u=' + token : app.replace(/\/?$/, '/') + '?u=' + token;
@@ -194,7 +194,18 @@ function instalar_(municipio, urlApp) {
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 /* La dirección /exec del ayuntamiento ES la app (como la herramienta de estructura): cada quien entra con /exec?u=SU_CODIGO.
    ?estado=1 responde solo si el servidor está vivo. */
+/* Desde el menú de la hoja, Google no da la dirección pública /exec (da otra que pide cuenta). Dentro de la app web sí:
+   se guarda la primera vez que alguien la abre, para que los enlaces que se creen después sean los correctos. */
+function recuerdaUrl_() {
+  try {
+    const c = CacheService.getScriptCache(); if (c.get('url_ok')) return;
+    const u = ScriptApp.getService().getUrl() || '';
+    if (/\/exec$/.test(u) && config_('URL_EXEC') !== u) ponConfig_('URL_EXEC', u);
+    c.put('url_ok', '1', 21600);
+  } catch (err) {}
+}
 function doGet(e) {
+  recuerdaUrl_();
   const p = (e && e.parameter) || {};
   if (p.estado) return json_({ ok: true, servicio: 'padron-municipal', version: VERSION, municipio: config_('MUNICIPIO') });
   const token = String(p.u || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80);
@@ -205,6 +216,7 @@ function doGet(e) {
 /* Lo que la app llama desde la página servida por Apps Script (google.script.run.api). */
 function api(d) {
   try {
+    recuerdaUrl_();
     const u = usuario_(d && d.token);
     if (!u) return { ok: false, error: 'enlace' };
     return JSON.parse(JSON.stringify(atiende_(u, d)));
