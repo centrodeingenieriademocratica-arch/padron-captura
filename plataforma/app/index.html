@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0F6B5C"><link rel="manifest" href="manifest.json">
+<title>Padrón de beneficiarios</title>
+<style>
+:root{--bg:#EEF1F4;--card:#fff;--ink:#14202B;--mut:#5B6B79;--line:#C9D2DA;--ac:#0F6B5C;--er:#B3261E;--ok:#1E7A3C;--wn:#9A5B00}
+@media(prefers-color-scheme:dark){:root{--bg:#10171D;--card:#1A242C;--ink:#E8EEF2;--mut:#9DB0BE;--line:#33444F;--ac:#4CB8A3;--er:#FF8A80;--ok:#7BD58D;--wn:#F2B35C}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--ac);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px}
+header b{flex:1;font-size:16px}header small{display:block;font-weight:400;opacity:.85;font-size:13px}
+#est{font-size:13px;background:#ffffff26;border-radius:20px;padding:4px 10px;white-space:nowrap}
+main{max-width:620px;margin:0 auto;padding:14px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+h1{font-size:20px;margin:2px 0 10px}h2{font-size:16px;margin:0 0 8px}
+label{display:block;font-size:14px;color:var(--mut);margin:12px 0 4px}
+input,select,textarea{width:100%;min-height:48px;padding:10px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px}
+textarea{min-height:80px}
+input[type=checkbox],input[type=radio]{width:22px;min-height:22px;margin:0 8px 0 0;flex:none}
+.ck{display:flex;align-items:center;padding:8px 0}
+button{min-height:50px;padding:0 16px;font:inherit;font-weight:600;border-radius:10px;border:0;background:var(--ac);color:#fff;width:100%;margin-top:10px;cursor:pointer}
+button.s{background:transparent;color:var(--ac);border:1px solid var(--ac)}
+button.x{background:transparent;color:var(--er);border:1px solid var(--er)}
+button:disabled{opacity:.5}
+.big{min-height:72px;font-size:18px;text-align:left;padding:0 18px}
+.r{display:flex;gap:8px}.r>*{flex:1}
+.st{font-size:14px;color:var(--mut)}.ok{color:var(--ok)}.er{color:var(--er)}.wn{color:var(--wn)}
+.it{padding:10px 0;border-top:1px solid var(--line)}.it:first-child{border-top:0}
+.it button{width:auto;min-height:40px;margin:6px 6px 0 0;padding:0 12px;font-size:14px}
+#m{position:fixed;left:12px;right:12px;bottom:12px;z-index:9;padding:12px 14px;border-radius:10px;display:none;box-shadow:0 4px 18px #0004;max-width:600px;margin:0 auto}
+#m.e{display:block;background:var(--er);color:#fff}#m.o{display:block;background:var(--ok);color:#fff}#m.w{display:block;background:var(--wn);color:#fff}
+.pasos{display:flex;gap:6px;margin-bottom:10px}.pasos span{flex:1;height:6px;border-radius:3px;background:var(--line)}.pasos span.on{background:var(--ac)}
+.gl{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:0 10px;margin-top:6px}
+canvas{width:100%;height:160px;background:#fff;border:1px dashed var(--line);border-radius:8px;touch-action:none}
+.tag{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:12px;padding:1px 8px;margin-left:6px}
+[hidden]{display:none!important}
+</style></head><body>
+<header><b><span id="tit">Padrón de beneficiarios</span><small id="sub"></small></b><span id="est" onclick="enviar(true)">…</span></header>
+<main>
+
+<section id="v-sin" class="c" hidden><h1>Abra su enlace personal</h1>
+<p class="st">Esta app se abre con el enlace que le dio el administrador de su ayuntamiento. Si lo perdió, pídale uno nuevo.</p></section>
+
+<!-- INICIO -->
+<section id="v-ini" hidden>
+<div class="c"><div class="st" id="hola"></div>
+<button class="big" onclick="ir('v-bus')">🔎 Buscar persona y registrar apoyo</button>
+<button class="big s" onclick="ir('v-evs')">👥 Entrega en evento o fila</button>
+<button class="big s" onclick="nuevaSolicitud()" id="b-sol">📝 Registrar una solicitud</button>
+<button class="big s" onclick="ir('v-pen')">📤 Mis pendientes <span id="npen"></span></button>
+<button class="big s" onclick="ir('v-adm')" id="b-adm" hidden>⚙️ Programas, eventos y usuarios</button></div>
+<p class="st" style="text-align:center">Todo lo que captura se guarda en este teléfono y se envía solo cuando hay señal.</p>
+</section>
+
+<!-- BUSCAR -->
+<section id="v-bus" hidden><div class="c"><h1>Buscar persona</h1>
+<div id="bev" class="st wn" hidden></div>
+<label for="q">CURP, nombre completo o folio</label><input id="q" autocomplete="off" autocapitalize="characters">
+<button onclick="buscar()">Buscar</button>
+<div id="res" style="margin-top:10px"></div>
+<button class="s" onclick="altaNueva()">➕ No está: registrar persona nueva</button>
+<button class="s" onclick="altaNueva('otro')">🏠 Registrar hogar, grupo, escuela u obra</button>
+<button class="s" onclick="volver()">← Volver</button></div></section>
+
+<!-- ALTA DE BENEFICIARIO -->
+<section id="v-alta" hidden><div class="c"><h1 id="alt-t">Persona nueva</h1>
+<div id="alt-tipo-b"><label for="tb">¿Qué se registra?</label><select id="tb" onchange="tipoAlta()"></select></div>
+<div id="alt-per">
+<label for="curp">CURP (si no la tiene, déjelo vacío y queda provisional)</label><input id="curp" maxlength="18" autocapitalize="characters" autocomplete="off" oninput="deCurp()">
+<div class="st" id="curp-m"></div></div>
+<label for="nom" id="nom-l">Nombre completo</label><input id="nom" autocomplete="off">
+<div id="alt-per2"><div class="r"><div><label for="nac">Fecha de nacimiento</label><input id="nac" type="date" min="1900-01-01"></div>
+<div><label for="sx">Sexo</label><select id="sx"><option value="">Elija</option><option>Mujer</option><option>Hombre</option></select></div></div>
+<div id="tut-b" hidden><label for="tut">Madre, padre o tutor (nombre; si ya está registrado, búsquelo primero)</label><input id="tut" autocomplete="off"></div>
+<label for="tel">Teléfono (opcional)</label><input id="tel" type="tel" inputmode="tel"></div>
+<label for="loc">Localidad o junta auxiliar</label><input id="loc" list="dl-loc" autocomplete="off"><datalist id="dl-loc"></datalist>
+<div class="r"><div><label for="col">Colonia o barrio</label><input id="col" autocomplete="off"></div><div><label for="cp">C. P.</label><input id="cp" inputmode="numeric" maxlength="5"></div></div>
+<label for="dir">Calle y número</label><input id="dir" autocomplete="off">
+<label>Ubicación</label><button class="s" onclick="gps('alta')" style="margin-top:0">📍 Estoy aquí: tomar ubicación</button>
+<div class="st" id="gps-alta">Sin ubicación. Si no se puede tomar, se guarda como pendiente.</div>
+<div id="alt-gr"><label>Grupos poblacionales (los que apliquen)</label><input id="grq" placeholder="Buscar grupo…" oninput="filtraGr()" autocomplete="off">
+<div class="gl" id="gr"></div><input id="gro" placeholder="Escriba cuál otro grupo" hidden maxlength="80"><div class="st" id="grn"></div></div>
+<div class="ck" style="margin-top:12px"><input type="checkbox" id="av"><label for="av" style="margin:0;color:var(--ink)">Le informé el aviso de privacidad <span class="st" onclick="verAviso(event)">(ver)</span></label></div>
+<div id="avx" class="st" hidden style="white-space:pre-wrap"></div>
+<button onclick="guardaAlta()">Guardar y registrar apoyo</button>
+<button class="s" onclick="guardaAlta(true)">Solo guardar a la persona</button>
+<button class="s" onclick="volver()">← Volver</button></div></section>
+
+<!-- ENTREGA EN 3 PASOS -->
+<section id="v-ent" hidden><div class="c">
+<div class="pasos"><span id="p1"></span><span id="p2"></span><span id="p3"></span></div>
+<div id="e1"><h1>1. Quién recibe</h1><p id="e-quien" style="font-size:18px;font-weight:600"></p>
+<label>¿Quién recoge el apoyo?</label>
+<div class="ck"><input type="radio" name="rec" id="rec-b" value="beneficiario" checked onchange="recibe()"><label for="rec-b" style="margin:0;color:var(--ink)">La misma persona</label></div>
+<div class="ck"><input type="radio" name="rec" id="rec-r" value="representante" onchange="recibe()"><label for="rec-r" style="margin:0;color:var(--ink)">Un representante</label></div>
+<div id="rep-b" hidden><label for="rep">Nombre del representante y parentesco</label><input id="rep" autocomplete="off"></div>
+<button onclick="paso(2)">Siguiente</button></div>
+<div id="e2" hidden><h1>2. Qué recibe</h1>
+<label for="prog">Apoyo</label><select id="prog" onchange="progSel()"></select>
+<div class="st" id="prog-d"></div>
+<div class="r"><div><label for="cant">Cantidad</label><input id="cant" type="number" inputmode="decimal" min="0" value="1"></div>
+<div><label for="mon">Monto ($)</label><input id="mon" type="number" inputmode="decimal" min="0" placeholder="automático"></div></div>
+<label for="fec">Fecha de entrega</label><input id="fec" type="date">
+<div id="extra"></div>
+<button onclick="paso(3)">Siguiente</button><button class="s" onclick="paso(1)">← Atrás</button></div>
+<div id="e3" hidden><h1>3. Evidencia</h1><div class="st" id="ev-pide"></div>
+<label for="fa">Foto de la entrega</label><input id="fa" type="file" accept="image/*" capture="environment">
+<label>Firma de quien recibe (con el dedo)</label><canvas id="firma"></canvas>
+<div class="r"><button class="s" onclick="borraFirma()">Borrar firma</button><button class="s" onclick="huella()">No sabe firmar</button></div>
+<label for="papel">Folio de lista o recibo en papel (si firmó en papel)</label><input id="papel" autocomplete="off">
+<button class="s" onclick="gps('ent')">📍 Tomar ubicación de la entrega</button><div class="st" id="gps-ent"></div>
+<button onclick="guardaEntrega()" id="b-ent">Guardar entrega</button><button class="s" onclick="paso(2)">← Atrás</button></div>
+</div></section>
+
+<!-- EVENTOS -->
+<section id="v-evs" hidden><div class="c"><h1>Entrega en evento o fila</h1>
+<p class="st">Elija el evento. Después solo busca o registra a cada persona; el apoyo, el lugar y la fecha ya van puestos.</p>
+<div id="evl"></div><button class="s" onclick="volver()">← Volver</button></div></section>
+
+<!-- SOLICITUD -->
+<section id="v-sol" hidden><div class="c"><h1>Solicitud</h1><p id="sol-q" style="font-weight:600"></p>
+<label for="sol-p">¿Qué apoyo pide? (si no está en la lista, elija el área)</label><select id="sol-p"></select>
+<label for="sol-d">Qué pide y por qué</label><textarea id="sol-d"></textarea>
+<button onclick="guardaSolicitud()">Guardar solicitud</button><button class="s" onclick="volver()">← Volver</button></div></section>
+
+<!-- PENDIENTES -->
+<section id="v-pen" hidden><div class="c"><h1>Mis pendientes</h1><div class="st" id="pen-r"></div>
+<button onclick="enviar(true)">Enviar ahora</button><div id="pen" style="margin-top:10px"></div>
+<button class="s" onclick="volver()">← Volver</button></div>
+<div class="c"><h2>Enviado hoy desde este teléfono</h2><div id="hechos"></div></div></section>
+
+<!-- ADMINISTRACIÓN -->
+<section id="v-adm" hidden>
+<div class="c"><h1>Nuevo programa o apoyo</h1><p class="st">Es la plantilla: después quien captura solo lo elige.</p>
+<label for="pa-n">Nombre (lo que verá quien captura)</label><input id="pa-n">
+<label for="pa-a">Área</label><select id="pa-a"></select>
+<div class="r"><div><label for="pa-t">Tipo de apoyo</label><select id="pa-t"></select></div><div><label for="pa-b">¿A quién se entrega?</label><select id="pa-b"></select></div></div>
+<div class="r"><div><label for="pa-u">Unidad</label><select id="pa-u"></select></div><div><label for="pa-m">Monto por unidad ($)</label><input id="pa-m" type="number" min="0" inputmode="decimal" placeholder="vacío = se escribe"></div></div>
+<div class="r"><div><label for="pa-p">¿Cada cuánto?</label><select id="pa-p"></select></div><div><label for="pa-f">Fuente del recurso</label><select id="pa-f"></select></div></div>
+<label>Evidencia que se pide</label><div id="pa-e"></div>
+<div class="ck"><input type="checkbox" id="pa-c"><label for="pa-c" style="margin:0;color:var(--ink)">Caso confidencial (violencia, salud, menores en riesgo)</label></div>
+<button onclick="guardaPrograma()">Guardar programa</button></div>
+<div class="c"><h1>Nuevo evento</h1>
+<label for="ev-n">Nombre</label><input id="ev-n" placeholder="Ej. Entrega de despensas, junta auxiliar San Juan">
+<label for="ev-p">Apoyo que se entrega</label><select id="ev-p"></select>
+<div class="r"><div><label for="ev-f">Fecha</label><input id="ev-f" type="date"></div><div><label for="ev-l">Lugar</label><input id="ev-l"></div></div>
+<label for="ev-lo">Localidad</label><input id="ev-lo" list="dl-loc">
+<button class="s" onclick="gps('ev')">📍 Estoy en el lugar</button><div class="st" id="gps-ev"></div>
+<button onclick="guardaEvento()">Guardar evento</button></div>
+<div class="c"><h1>Lote comprado (inventario)</h1>
+<label for="lo-p">Apoyo</label><select id="lo-p"></select>
+<div class="r"><div><label for="lo-c">Cantidad comprada</label><input id="lo-c" type="number" min="1" inputmode="numeric"></div><div><label for="lo-fa">Factura</label><input id="lo-fa"></div></div>
+<label for="lo-pr">Proveedor</label><input id="lo-pr">
+<button onclick="guardaLote()">Guardar lote</button></div>
+<div class="c" id="adm-u"><h1>Usuarios (necesita señal)</h1>
+<label for="us-n">Nombre</label><input id="us-n">
+<label for="us-r">Rol</label><select id="us-r"><option value="capturista">Capturista: registra</option><option value="responsable">Responsable de área: programas, eventos y correcciones</option><option value="consulta">Consulta</option><option value="admin">Administrador</option></select>
+<label>Áreas</label><div id="us-a" class="gl"></div>
+<button onclick="creaUsuario()">Crear enlace</button><div id="us-out" style="word-break:break-all;margin-top:8px"></div>
+<button class="s" onclick="verUsuarios()">Ver usuarios</button><div id="us-l"></div></div>
+<button class="s" onclick="volver()">← Volver</button></section>
+</main>
+<div id="m"></div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body></html>

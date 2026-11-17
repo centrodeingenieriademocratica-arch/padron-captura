@@ -5,8 +5,13 @@ Reemplaza a la app de captura v13 (archivos de la raíz del repositorio), que si
 ## Cómo está armada
 
 - **servidor/Codigo.gs**: Apps Script de **un** ayuntamiento, pegado en su hoja, que vive en una cuenta de Google gratuita del ayuntamiento. Menú *Padrón → 1. Configurar* crea las pestañas, los catálogos base y el enlace del administrador.
-- **app/** (paso siguiente): app instalable en Firebase Hosting, con un enlace corto por ayuntamiento. Funciona sin señal y envía lotes de operaciones al servidor.
-- **pruebas/**: un simulador de Apps Script para probar el servidor sin Google. Se corre con `node plataforma/pruebas/servidor.test.js`.
+- **app/**: app instalable para celular (Firebase Hosting, un enlace corto por ayuntamiento). Lo único que cambia entre ayuntamientos es `app/config.js`. Sin servidor configurado abre en modo de muestra.
+  - Buscar persona, alta (persona, hogar, grupo, institución, obra o unidad productiva; menor con tutor; CURP llena fecha y sexo), entrega en 3 pasos (quién recibe, apoyo y cantidad, evidencia: foto, firma, "no sabe firmar", folio de lista en papel, ubicación), entrega en evento o fila, solicitudes, pendientes y administración (programas, eventos, lotes, usuarios).
+  - Todo se guarda primero en el teléfono y se envía solo cuando hay señal; si se envía dos veces no se duplica.
+- **pruebas/**: un simulador de Apps Script para probar sin Google.
+  - `node plataforma/pruebas/servidor.test.js`: reglas del servidor.
+  - `node plataforma/pruebas/app.e2e.js`: la app completa en un navegador sin pantalla (administrador y capturista, sin señal y con señal).
+  - `node plataforma/pruebas/servidor-local.js`: abre la app con el servidor simulado en http://localhost:8080 para revisarla a mano.
 
 ## Modelo de datos (una pestaña por tabla)
 
@@ -31,8 +36,9 @@ Reemplaza a la app de captura v13 (archivos de la raíz del repositorio), que si
 - Mismo CURP es la misma persona: no se duplica, aunque se capture en dos teléfonos sin señal.
 - Sin CURP, nunca se une por nombre: si el nombre y la fecha de nacimiento coinciden, se guarda en "Revisar".
 - Ninguna regla bloquea una entrega real. Entrega repetida en el periodo, lote agotado o falta de evidencia se guardan con alerta.
+- Cada entrega se descuenta sola del primer lote del programa que tenga existencia.
 - Cada usuario solo opera los programas de sus áreas. Quien captura solo recibe nombre y localidad al buscar.
 - Los casos confidenciales solo los encuentra su área.
 - Las correcciones directas son del administrador o del responsable del área, con motivo. Quien captura pide la corrección.
 
-Estado: probado solo en el simulador (23 pruebas). **No probado en Google real.**
+Estado: probado solo en el simulador (23 pruebas del servidor y 14 de la app). **No probado en Google real ni en un teléfono real.**
