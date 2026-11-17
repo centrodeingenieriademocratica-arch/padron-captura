@@ -4,27 +4,27 @@ const { chromium } = require('playwright'), http = require('http'), fs = require
 const { crear } = require('./simulador');
 const DIR = path.join(__dirname, '..', 'admin');
 const EA = 'https://script.google.com/macros/s/' + 'A'.repeat(30) + '/exec', EB = 'https://script.google.com/macros/s/' + 'B'.repeat(30) + '/exec';
-const REG = 'https://script.google.com/macros/s/' + 'R'.repeat(30) + '/exec';
+const REG = '/api/registro';
 const A = crear(), B = crear();
 const ta = A.instalar_('Ayuntamiento de Atlixco', '').token, tb = B.instalar_('Ayuntamiento de Chiautzingo', '').token;
 A.agrega_('Solicitudes', { id: 'S-VIEJA0001', beneficiario_id: 'X', area: 'DIF', fecha: '2020-01-01', descripcion: 'x', estatus: 'Recibida' });
-/* Registro simulado */
-const props = {}, R = { console, ContentService: A.ContentService, PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) },
-  LockService: A.LockService, Utilities: Object.assign({}, A.Utilities, { sleep() {} }),
-  UrlFetchApp: { fetch: () => ({ getContentText: () => JSON.stringify({ servicio: 'padron-municipal' }) }) } };
-vm.createContext(R); vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'registro', 'Registro.gs'), 'utf8'), R);
-const reg = b => R.doPost({ postData: { contents: JSON.stringify(b) } }).contenido;
-reg({ a: 'anotar', nombre: 'Ayuntamiento de Atlixco', url: EA }); reg({ a: 'anotar', nombre: 'Ayuntamiento de Chiautzingo', url: EB });
+/* Registro simulado: la misma función de Cloudflare, con KV en memoria. */
+const { kv: nuevoKv, registro } = require('./kv-simulado'), KV = nuevoKv();
+const esPadron = async () => ({ json: async () => ({ servicio: 'padron-municipal' }) });
+let reg;
 
 let n = 0, fallas = 0;
 const ok = (c, t) => { n++; if (c) console.log('ok   ' + t); else { fallas++; console.log('FALLA ' + t); } };
-const srv = http.createServer((q, r) => {
+const srv = http.createServer(async (q, r) => {
   let f = q.url.split('?')[0]; if (f === '/') f = '/index.html';
+  if (f === REG) { let b = ''; for await (const c of q) b += c; r.setHeader('content-type', 'application/json'); return r.end(JSON.stringify(await reg(JSON.parse(b)))); }
   if (f === '/config.js') { r.setHeader('content-type', 'text/javascript'); return r.end("window.ADMIN = { registro: '" + REG + "' };"); }
   const p = path.join(DIR, f); if (!fs.existsSync(p)) { r.statusCode = 404; return r.end(); }
   r.setHeader('content-type', { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png' }[path.extname(p)] || 'text/plain');
   r.end(fs.readFileSync(p));
 }).listen(8099, async () => {
+  const { atiende } = await registro(); reg = d => atiende(d, KV, esPadron);
+  await reg({ a: 'anotar', nombre: 'Ayuntamiento de Atlixco', url: EA }); await reg({ a: 'anotar', nombre: 'Ayuntamiento de Chiautzingo', url: EB });
   const b = await chromium.launch(), pg = await b.newPage({ viewport: { width: 390, height: 844 } }), errs = [], vistos = [];
   pg.on('pageerror', e => errs.push(e.message));
   await pg.route('https://script.google.com/**', async rt => {
@@ -32,7 +32,7 @@ const srv = http.createServer((q, r) => {
     const h = { 'access-control-allow-origin': '*', 'content-type': 'application/json' };
     if (rt.request().method() === 'GET') { vistos.push(u); return rt.fulfill({ status: 200, headers: { 'content-type': 'text/html' }, body: '<p>app ' + u + '</p>' }); }
     const body = rt.request().postData();
-    const out = base === REG ? reg(JSON.parse(body)) : S.doPost({ postData: { contents: body } }).contenido;
+    const out = S.doPost({ postData: { contents: body } }).contenido;
     rt.fulfill({ status: 200, headers: h, body: out });
   });
   const t = ms => pg.waitForTimeout(ms);

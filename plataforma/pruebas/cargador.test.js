@@ -1,4 +1,4 @@
-/* Pruebas del cargador (lo único que se pega en cada municipio) y del registro del Centro.
+/* Pruebas del cargador (lo único que se pega en cada municipio) (el registro de municipios se prueba en registro-cloudflare.test.js).
    Correr: node plataforma/pruebas/cargador.test.js */
 const assert = require('assert'), fs = require('fs'), path = require('path'), vm = require('vm'), crypto = require('crypto');
 const { crear } = require('./simulador');
@@ -53,44 +53,12 @@ prueba('una versión maestra rota no reemplaza la buena', () => {
   github = MAESTRA;
 });
 
-/* ---------- Registro del Centro ---------- */
-const props = {}, cacheR = {};
-const EXEC = 'https://script.google.com/macros/s/' + 'A'.repeat(30) + '/exec', FALSA = 'https://script.google.com/macros/s/' + 'B'.repeat(30) + '/exec';
-const R = {
-  console, ContentService: { MimeType: { JSON: 'json' }, createTextOutput: s => ({ setMimeType() { return this; }, contenido: s }) },
-  PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) },
-  LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
-  Utilities: Object.assign({}, C.Utilities, { sleep() {} }),
-  UrlFetchApp: { fetch: url => resp(200, url.indexOf(EXEC) === 0 ? JSON.stringify({ ok: true, servicio: 'padron-municipal' }) : '<html>') }
-};
-vm.createContext(R);
-vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'registro', 'Registro.gs'), 'utf8'), R);
-const reg = b => JSON.parse(R.doPost({ postData: { contents: JSON.stringify(b) } }).contenido);
-
-prueba('registro: sin clave no lista; la primera clave queda y no se puede cambiar', () => {
-  assert.strictEqual(reg({ a: 'lista', clave: 'x' }).error, 'sin_clave');
-  assert.strictEqual(reg({ a: 'ponClave', clave: 'corta' }).error, 'clave_corta');
-  assert.ok(reg({ a: 'ponClave', clave: 'clave-del-centro' }).ok);
-  assert.strictEqual(reg({ a: 'ponClave', clave: 'otra-clave-x' }).error, 'ya_hay_clave');
-  assert.strictEqual(reg({ a: 'lista', clave: 'mala-clave' }).error, 'clave');
-  assert.ok(!JSON.stringify(props).includes('clave-del-centro'), 'solo guarda la huella');
-});
-prueba('registro: un municipio se anota solo, sin claves, y no se duplica', () => {
-  assert.ok(reg({ a: 'anotar', nombre: 'Ayuntamiento de Atlixco', url: EXEC, version: 'F1.4' }).ok);
-  assert.ok(reg({ a: 'anotar', nombre: 'Ayuntamiento de Atlixco', url: EXEC, version: 'F1.5' }).ok);
-  const l = reg({ a: 'lista', clave: 'clave-del-centro' });
-  assert.strictEqual(l.municipios.length, 1); assert.strictEqual(l.municipios[0].version, 'F1.5');
-});
-prueba('registro: no anota direcciones que no son un padrón', () => {
-  assert.strictEqual(reg({ a: 'anotar', nombre: 'X', url: FALSA }).error, 'no_es_padron');
-  assert.strictEqual(reg({ a: 'anotar', nombre: 'X', url: 'https://malo.com/exec' }).error, 'datos');
-  assert.strictEqual(reg({ a: 'lista', clave: 'clave-del-centro' }).municipios.length, 1);
-});
+const EXEC = 'https://script.google.com/macros/s/' + 'A'.repeat(30) + '/exec';
 prueba('el servidor del municipio se anota en el registro al abrirse', () => {
   let anotado = null;
-  const S = crear({ fetch: (url, o) => { if (url === 'https://registro/exec') { anotado = JSON.parse(o.payload); return resp(200, '{"ok":true}'); } return null; } });
+  const S = crear({ fetch: (url, o) => { if (url === 'https://padron.ejemplo/api/registro') { anotado = JSON.parse(o.payload); return resp(200, '{"ok":true}'); } return null; } });
   S.instalar_('Ayuntamiento de Chiautzingo', '');
-  S.ponConfig_('REGISTRO', 'https://registro/exec'); S.ponConfig_('URL_EXEC', EXEC);
+  S.ponConfig_('REGISTRO', 'https://padron.ejemplo/api/registro'); S.ponConfig_('URL_EXEC', EXEC);
   S.abrir({ estado: 1 });
   assert.ok(anotado && anotado.a === 'anotar' && anotado.url === EXEC && anotado.nombre === 'Ayuntamiento de Chiautzingo');
   assert.ok(!('token' in anotado));

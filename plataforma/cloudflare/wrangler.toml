@@ -1,0 +1,11 @@
+# Sitio del padrón en Cloudflare Pages (cuenta de Cloudflare del CID): app de mando en /admin,
+# versión maestra en /servidor/Codigo.gs y /app/, registro de municipios en /api/registro.
+# Se publica solo con cada cambio en main (Cloudflare conectado al repositorio: raíz plataforma/cloudflare,
+# comando «node armar.js», salida «dist»). Nada vive en la cuenta Google del CID.
+name = "padron-cid"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-01-01"
+
+[[kv_namespaces]]
+binding = "REGISTRO"
+id = "PENDIENTE_ID_KV"

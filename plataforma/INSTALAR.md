@@ -6,7 +6,7 @@ Se hace en computadora, una sola vez.
 
 1. Crear una cuenta de Google gratuita para el ayuntamiento y entrar con ella.
 2. Crear una hoja de cálculo llamada «Padrón de beneficiarios – nombre del ayuntamiento». Compartirla como editora con la cuenta del Centro.
-3. En la hoja, ir a Extensiones › Apps Script. Copiar todo el texto de `plataforma/servidor/Cargador.gs` desde GitHub, pegarlo en lugar de lo que haya en Código.gs y guardar. El cargador toma solo la versión maestra (`Codigo.gs`) de GitHub; no se pega nada más, nunca.
+3. En la hoja, ir a Extensiones › Apps Script. Copiar todo el texto de `plataforma/servidor/Cargador.gs` desde GitHub, pegarlo en lugar de lo que haya en Código.gs y guardar. El cargador toma solo la versión maestra (`Codigo.gs`) del sitio del padrón en Cloudflare; no se pega nada más, nunca.
 4. Implementar › Nueva implementación › Aplicación web, con «Ejecutar como: Yo» y «Quién tiene acceso: Cualquier usuario». Aceptar los permisos.
 5. Volver a la hoja y recargarla. En el menú Padrón › 1. Configurar este ayuntamiento, escribir el nombre del ayuntamiento y dejar vacío el enlace corto.
 6. Aparece el enlace del administrador. Ojo: desde la hoja, Google pone en el enlace una dirección que no sirve para el público. Cambie lo que va antes de `?u=` por la dirección /exec que dio Implementar (paso 4), o mejor pegue esa dirección antes, en la pestaña Config, clave `URL_APP`. Entregarlo en persona: no se vuelve a mostrar. Si se pierde, usar Padrón › 2. Nuevo enlace de administrador.
@@ -16,7 +16,7 @@ Se hace en computadora, una sola vez.
 
 ## Para actualizar
 
-- Si cambia la app (`plataforma/app`), no hay que hacer nada: cada ayuntamiento la toma de GitHub y la renueva cada 6 horas. Para tenerla al momento: Padrón › 3. Actualizar la app ahora.
+- Si cambia la app (`plataforma/app`), no hay que hacer nada: cada ayuntamiento la toma del sitio del padrón en Cloudflare (se publica solo desde main) y la renueva cada 6 horas. Para tenerla al momento: Padrón › 3. Actualizar la app ahora.
 - Si cambia `Codigo.gs` (la versión maestra), tampoco hay que hacer nada: el cargador la toma sola en máximo 6 horas. Para tenerla al momento en todos: botón «Actualizar todos a la versión maestra» en la app de mando.
 - Solo si cambia `Cargador.gs` (casi nunca) hay que pegarlo de nuevo y elegir Implementar › Gestionar implementaciones › Editar › Nueva versión.
 - Ayuntamientos instalados antes del cargador (Atlixco, Chiautzingo): pegar `Cargador.gs` en lugar del código completo una sola vez y hacer Nueva versión. Sus datos y enlaces no cambian.
@@ -34,8 +34,16 @@ Igual que en estructura: cada ayuntamiento tiene su dirección `https://cid-padr
 
 Lo capturado sin señal se queda en el teléfono y se envía solo al volver la conexión. Para abrir la app hace falta señal la primera vez de cada jornada. Si la señal se va, no cierre la pestaña.
 
-## App de mando del Centro (una sola vez, cuenta del Centro)
+## Sitio del padrón en Cloudflare (una sola vez, cuenta de Cloudflare del CID)
 
-1. **Registro**: en script.google.com con la cuenta del Centro, un proyecto con `plataforma/registro/Registro.gs`. Implementar como aplicación web, «Ejecutar como: Yo», «Quién tiene acceso: Cualquier usuario». Su dirección /exec va en `REGISTRO_CENTRO` de `servidor/Codigo.gs` y en `admin/config.js`.
-2. **App**: desde `plataforma/admin`, una vez `firebase hosting:sites:create cid-admin-benefi --project cid-enlaces`, y luego `firebase deploy --only hosting --project cid-enlaces`. El `firebase.json` de esa carpeta solo publica el sitio cid-admin-benefi: no toca ningún otro sitio del proyecto.
-3. En el celular abrir https://cid-admin-benefi.web.app, «Agregar a pantalla de inicio», elegir PIN y clave del registro, y escribir la clave de administrador de cada municipio. Las claves quedan solo en ese celular, cifradas con el PIN.
+Como Timón (Doc «Cómo funcionan las apps del CID»): la app de mando, la versión maestra y la lista de municipios viven en Cloudflare. Nada vive en la cuenta Google del CID.
+
+1. **KV**: en Cloudflare › Storage › KV crear el espacio `padron-registro` y poner su id en `plataforma/cloudflare/wrangler.toml`.
+2. **Pages**: Workers & Pages › Crear › Pages › Conectar a Git › `padron-captura`, nombre `padron-cid`, rama `main`, directorio raíz `plataforma/cloudflare`, comando `node armar.js`, salida `dist`. Desde ahí cada cambio en main se publica solo y llega a todos los municipios.
+3. Si Cloudflare diera otra dirección que `padron-cid.pages.dev`, cambiarla en `FUENTE_NUCLEO` (Cargador.gs), `FUENTE_APP` y `REGISTRO_CENTRO` (Codigo.gs).
+
+Qué queda publicado: `/admin/` (app de mando), `/servidor/Codigo.gs` (versión maestra), `/app/` (app del celular), `/api/registro` (registro: solo nombre y dirección /exec de cada municipio; la clave del registro solo queda como huella).
+
+## App de mando del Centro
+
+1. En el celular abrir https://padron-cid.pages.dev/admin/, «Agregar a pantalla de inicio», elegir PIN y clave del registro, y escribir la clave de administrador de cada municipio. Las claves quedan solo en ese celular, cifradas con el PIN.
