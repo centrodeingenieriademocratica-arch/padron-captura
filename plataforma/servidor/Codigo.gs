@@ -400,14 +400,20 @@ function opEntrega_(u, d) {
       .some(x => x.o.programa_id === p.o.id && x.o.periodo === per && x.o.estado !== 'Cancelada');
     if (rep) alertas.push('repetida_en_periodo');
   }
-  const loteId = txt_(d.lote_id, 40).toUpperCase();
+  /* Inventario: si no se dice de qué lote sale, se toma el primer lote del programa que aún tenga existencia. */
+  const usadoDe_ = id => buscaFilas_('Entregas', 'lote_id', id).filter(x => x.o.estado !== 'Cancelada')
+    .reduce((s, x) => s + Number(x.o.cantidad || 0), 0);
+  let loteId = txt_(d.lote_id, 40).toUpperCase();
   if (loteId) {
     const lote = uno_('Lotes', 'id', loteId);
     if (!lote) alertas.push('lote_desconocido');
-    else {
-      const usado = buscaFilas_('Entregas', 'lote_id', loteId).filter(x => x.o.estado !== 'Cancelada')
-        .reduce((s, x) => s + Number(x.o.cantidad || 0), 0);
-      if (usado + cantidad > Number(lote.o.cantidad)) alertas.push('lote_agotado');
+    else if (usadoDe_(loteId) + cantidad > Number(lote.o.cantidad)) alertas.push('lote_agotado');
+  } else {
+    const lotes = buscaFilas_('Lotes', 'programa_id', p.o.id);
+    if (lotes.length) {
+      const libre = lotes.find(l => usadoDe_(l.o.id) + cantidad <= Number(l.o.cantidad));
+      if (libre) loteId = libre.o.id;
+      else { loteId = lotes[lotes.length - 1].o.id; alertas.push('lote_agotado'); }
     }
   }
   const evid = lista_(p.o.evidencia), fotos = guardaEvidencia_(id, d.evidencia);
