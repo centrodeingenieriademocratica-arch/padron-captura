@@ -1,0 +1,26 @@
+{
+  "hosting": [
+    {
+      "target": "cid-padron-atlixco",
+      "public": "publico/cid-padron-atlixco",
+      "cleanUrls": true,
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "/",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -7,7 +7,7 @@
    - Quien captura solo recibe nombres (y localidad) de lo que busca; nunca el padrón completo.
    Probado solo en el simulador (plataforma/pruebas/servidor.test.js). NO PROBADO en Google real. */
 
-const VERSION = 'F1.2';
+const VERSION = 'F1.3';
 const TZ = 'America/Mexico_City';
 
 /* ---------- Modelo de datos: una pestaña por tabla. Las columnas nuevas se agregan siempre al final. ---------- */
@@ -137,7 +137,10 @@ function nuevoToken_() {
   for (let i = 0; i < 20; i++) t += al[Math.floor(Math.random() * al.length)];
   return t;
 }
+/* El código puede llegar solo o con el nombre delante y en minúsculas (enlace corto: /ana-kbuy…). */
+function limpiaToken_(t) { const p = String(t || '').trim().split(/[-\/]/); return p[p.length - 1].toUpperCase(); }
 function usuario_(token) {
+  token = limpiaToken_(token);
   if (!token) return null;
   const f = uno_('Usuarios', 'token_hash', huella_(token));
   if (!f || String(f.o.activo).toUpperCase() !== 'SI') return null;
@@ -150,10 +153,16 @@ function creaUsuario_(quien, nombre, rol, areas) {
   agrega_('Usuarios', { id, nombre, rol, areas: lista_(areas).join(';'), token_hash: huella_(token), activo: 'SI',
     creado: new Date(), creado_por: quien ? quien.id : 'instalacion' });
   bitacora_(quien, 'alta_usuario', 'Usuarios', id, 'rol', '', rol);
-  return { id, token, enlace: enlace_(token) };
+  return { id, token, enlace: enlace_(token, nombre) };
 }
-/* El enlace personal: el enlace corto del ayuntamiento si lo tiene (Config URL_APP), si no la dirección /exec del script. */
-function enlace_(token) {
+/* El enlace personal. Con dirección corta del Centro (Config URL_CORTA, ej. https://cid-padron-atlixco.web.app):
+   dirección corta + nombre de pila + código, en minúsculas. Si no, la dirección /exec del script. */
+function slug_(n) {
+  return String(n || '').split(/\s+/)[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+}
+function enlace_(token, nombre) {
+  const corta = config_('URL_CORTA').replace(/\/+$/, '');
+  if (corta) { const s = slug_(nombre); return corta + '/' + (s ? s + '-' : '') + token.toLowerCase(); }
   let app = config_('URL_APP') || config_('URL_EXEC');
   if (!app) { try { app = ScriptApp.getService().getUrl() || ''; } catch (e) { app = ''; } }
   if (!app) return token;
@@ -211,10 +220,13 @@ function doGet(e) {
   recuerdaUrl_();
   const p = (e && e.parameter) || {};
   if (p.estado) return json_({ ok: true, servicio: 'padron-municipal', version: VERSION, municipio: config_('MUNICIPIO') });
-  const token = String(p.u || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80);
-  return HtmlService.createHtmlOutput(paginaApp_(token))
-    .setTitle(config_('MUNICIPIO') || 'Padrón de beneficiarios')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+  const token = String(p.u || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80), corta = config_('URL_CORTA').replace(/\/+$/, '');
+  const out = HtmlService.createHtmlOutput(paginaApp_(token))
+    .setTitle('Padrón de beneficiarios · ' + (config_('MUNICIPIO') || 'CID'))
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // para abrirse dentro de la dirección corta
+  if (corta) try { out.setFaviconUrl(corta + '/icono.png'); } catch (err) {}
+  return out;
 }
 /* Lo que la app llama desde la página servida por Apps Script (google.script.run.api). */
 function api(d) {
@@ -236,7 +248,7 @@ function doPost(e) {
    sin volver a pegar nada. Si GitHub no responde, se usa la última copia buena guardada en el script. */
 const FUENTE_APP = 'https://raw.githubusercontent.com/centrodeingenieriademocratica-arch/padron-captura/main/plataforma/app/';
 function paginaApp_(token) {
-  const conf = '<script>window.PADRON = ' + JSON.stringify({ gas: true, token, municipio: config_('MUNICIPIO') }) + ';</script>';
+  const conf = '<script>window.PADRON = ' + JSON.stringify({ gas: true, token, municipio: config_('MUNICIPIO'), corta: config_('URL_CORTA') }) + ';</script>';
   return armaApp_().replace('<!--CONFIG-->', conf);
 }
 function armaApp_() {

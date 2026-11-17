@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "cid-enlaces"
+  },
+  "targets": {
+    "cid-enlaces": {
+      "hosting": {
+        "cid-padron-atlixco": [
+          "cid-padron-atlixco"
+        ]
+      }
+    }
+  }
+}

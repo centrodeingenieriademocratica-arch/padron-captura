@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#132a4e">
+<title>Padrón de beneficiarios · {{MUNICIPIO}}</title>
+<meta property="og:title" content="Padrón de beneficiarios · {{MUNICIPIO}}">
+<meta property="og:description" content="Toca para abrir tu acceso personal.">
+<meta property="og:image" content="{{SITIO}}/icono.png"><meta property="og:type" content="website">
+<link rel="icon" href="/icono.png"><link rel="apple-touch-icon" href="/icono.png">
+<style>
+html,body{margin:0;height:100%;background:#132a4e;color:#fff;font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{position:fixed;inset:0;width:100%;height:100%;border:0;background:#EEF2F7}
+.sin{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px max(16px,env(safe-area-inset-left)) 24px max(16px,env(safe-area-inset-right));box-sizing:border-box}
+.sin img{width:120px;height:120px}.sin h1{font-size:22px;margin:0}.sin p{margin:0;max-width:30em;opacity:.85}
+</style></head><body>
+<div class="sin" id="sin"><img src="/icono.png" alt="CID"><h1>Padrón de beneficiarios · {{MUNICIPIO}}</h1>
+<p id="txt">Abre el enlace personal que te enviaron por WhatsApp.</p></div>
+<script>
+/* Dirección corta del padrón. El enlace es /nombre-código (o solo /código, o /?u=código).
+   La app del ayuntamiento (Apps Script) se abre aquí adentro: la barra del celular siempre muestra esta dirección.
+   Esta página solo guarda la dirección /exec del ayuntamiento; ningún dato personal. */
+(function () {
+  var EXEC = '{{EXEC}}';
+  var q = new URLSearchParams(location.search), partes = location.pathname.split('/').filter(Boolean);
+  var c = (q.get('u') || (partes.length ? partes[partes.length - 1] : '')).split('-').pop().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!/^[A-Z0-9]{20}$/.test(c)) { if (c) document.getElementById('txt').textContent = 'Este enlace no está completo. Ábrelo otra vez desde el mensaje de WhatsApp o pide uno nuevo.'; return; }
+  var f = document.createElement('iframe');
+  f.id = 'app'; f.title = 'Padrón de beneficiarios'; f.src = EXEC + '?u=' + c;
+  f.allow = 'geolocation *; camera *; clipboard-write *';
+  document.getElementById('sin').remove(); document.body.appendChild(f);
+})();
+</script>
+</body></html>
