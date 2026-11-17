@@ -2,6 +2,8 @@
    Imita solo lo que usa el servidor: hojas, rangos, buscador de texto, candado, propiedades y utilidades. */
 const fs = require('fs'), vm = require('vm'), crypto = require('crypto'), path = require('path');
 
+/* Como Google Sheets: un texto que empieza con ' se guarda sin el apóstrofo; uno que empieza con = o + se vuelve fórmula (error). */
+const comoHoja = x => typeof x !== 'string' ? x : x[0] === "'" ? x.slice(1) : /^[=+]/.test(x) ? '#ERROR!' : x;
 class Rango {
   constructor(h, r, c, nr, nc) { Object.assign(this, { h, r, c, nr, nc }); }
   getRow() { return this.r; }
@@ -17,7 +19,7 @@ class Rango {
   }
   setValue(x) {
     const f = this.h.datos[this.r - 1] || (this.h.datos[this.r - 1] = []);
-    f[this.c - 1] = x;
+    f[this.c - 1] = comoHoja(x);
     return this;
   }
   createTextFinder(t) { return new Buscador(this, String(t)); }
@@ -41,7 +43,7 @@ class Hoja {
   getName() { return this.n; }
   getLastRow() { return this.datos.length; }
   getLastColumn() { return Math.max(0, ...this.datos.map(f => f.length)); }
-  appendRow(f) { this.datos.push(f.slice()); }
+  appendRow(f) { this.datos.push(f.map(comoHoja)); }
   getRange(r, c, nr, nc) { return new Rango(this, r, c, nr || 1, nc || 1); }
   setFrozenRows() {}
 }

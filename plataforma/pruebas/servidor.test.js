@@ -170,6 +170,15 @@ prueba('capturista pide corrección y queda en bitácora', () => {
   assert.ok(r.resultados[0].ok);
   assert.ok(S.hojas.Bitacora.datos.some(f => f[2] === 'pide_correccion' && f[4] === 'T-AAAA1111'));
 });
+prueba('un texto que empieza con = o + se guarda tal cual, no como fórmula', () => {
+  const r = S.post({ token: adm, a: 'crearUsuario', nombre: '=Ana', rol: 'consulta', areas: ['DIF'] });
+  assert.ok(S.hojas.Usuarios.datos.some(f => f[1] === '=Ana'));
+  for (let i = 0; i < 60; i++) {
+    const x = S.post({ token: adm, a: 'crearUsuario', nombre: 'Varios ' + i, rol: 'consulta', areas: ['DIF'] });
+    assert.ok(S.post({ token: x.token, a: 'login' }).ok, 'cada enlace nuevo entra (aunque su huella empiece con +)');
+  }
+  assert.ok(r.ok);
+});
 prueba('la dirección /exec sirve la app completa con el enlace de la persona', () => {
   const h = S.abrir({ u: adm });
   assert.ok(h.indexOf('id="v-bus"') > 0, 'trae las pantallas');

@@ -82,7 +82,9 @@ function filas_(n) {
   return s.getRange(2, 1, u - 1, HOJAS[n].length).getValues().map(r => obj_(n, r));
 }
 function obj_(n, r) { const o = {}; HOJAS[n].forEach((c, i) => o[c] = r[i] === undefined ? '' : r[i]); return o; }
-function agrega_(n, o) { hoja_(n).appendRow(HOJAS[n].map(c => o[c] === undefined || o[c] === null ? '' : o[c])); }
+/* Un texto que empieza con = + - @ la hoja lo toma como fórmula (y se pierde, o se vuelve un riesgo). Se guarda como texto. */
+const celda_ = v => typeof v === 'string' && /^[=+\-@]/.test(v) ? "'" + v : v;
+function agrega_(n, o) { hoja_(n).appendRow(HOJAS[n].map(c => o[c] === undefined || o[c] === null ? '' : celda_(o[c]))); }
 /* Busca filas por el valor exacto de una columna sin leer la hoja completa. */
 function buscaFilas_(n, campo, valor) {
   const s = hoja_(n), u = s.getLastRow();
@@ -95,7 +97,7 @@ function buscaFilas_(n, campo, valor) {
   }).filter(x => String(x.o[campo]) === String(valor));
 }
 const uno_ = (n, campo, valor) => (buscaFilas_(n, campo, valor)[0] || null);
-function cambia_(n, fila, campo, valor) { hoja_(n).getRange(fila, col_(n, campo)).setValue(valor); }
+function cambia_(n, fila, campo, valor) { hoja_(n).getRange(fila, col_(n, campo)).setValue(celda_(valor)); }
 
 /* Config es chica: se lee completa (en Google real el buscador de texto no encontró una clave escrita a mano). */
 function config_(k) { const f = filas_('Config').find(x => String(x.clave).trim() === k); return f ? String(f.valor).trim() : ''; }
