@@ -22,7 +22,7 @@
 const COLS={
  Claves:["id","nombre","municipio","hash","activa","rol"],
  Catalogos:["municipio","tipo","valor"],
- Capturas:["id","ts","capturista","municipio","estado","curp","folio","nombre","localidad","tel","direccion","lat","lng","grupos","programa","eje","area","monto","fecha","fotoBen","fotoApoyo","fotoIne","notas","motivoSinGps","nacimiento","sexo","evento","tipo","canal","colonia","cp","correo","fotoIneReverso","origen_ubicacion"],
+ Capturas:["id","ts","capturista","municipio","estado","curp","folio","nombre","localidad","tel","direccion","lat","lng","grupos","programa","eje","area","monto","fecha","fotoBen","fotoApoyo","fotoIne","notas","motivoSinGps","nacimiento","sexo","evento","tipo","canal","colonia","cp","correo","fotoIneReverso","origen_ubicacion","grupo_otro"],
  Padron:["clave","curp","folio","nombre","municipio","localidad","tel","direccion","lat","lng","grupos","primera_captura","estado","nacimiento","sexo","colonia","cp","correo","origen_ubicacion","precision"],
  Apoyos:["id","clave","municipio","programa","eje","area","monto","fecha","lat","lng","fotoBen","fotoApoyo","captura","aviso","evento","tipo","canal"],
  /* Cada área da de alta aquí sus apoyos; el capturista solo elige el nombre. Monto vacío = lo escribe el capturista. Fecha vacía = día de la captura. */
@@ -229,7 +229,6 @@ function altaAyto_(mun,url){const tok=Utilities.getUuid().replace(/-/g,"").slice
   const def=nueva.getSheets()[0];
   Object.keys(COLS).forEach(n=>{const s=nueva.insertSheet(n);s.appendRow(COLS[n]);s.setFrozenRows(1)});
   try{nueva.deleteSheet(def)}catch(e){}
-  sh_("Catalogos").getRange(2,1,2,3).setValues([["*","grupo","Adulto mayor"],["*","grupo","Persona con discapacidad"]]);
   /* Aviso al editar a mano el historial y las claves (no bloquea, solo advierte). */
   ["Capturas","Claves"].forEach(n=>sh_(n).protect().setDescription("Historial: no editar").setWarningOnly(true));
   const clave=clave_("Administrador",mun,"admin"),enlace=PAGINA+"?srv="+encodeURIComponent(url)+"&m="+tok;
@@ -337,7 +336,7 @@ function guardar_(q,r){
  if(ev){r.programa=ev[3]||ev[2];r.tipo=ev[4];r.eje=ev[5];r.area=ev[6];r.canal=ev[7];if(ev[8]!=="")r.monto=ev[8];
   r.fecha=ev[9]!==""?ev[9]:Utilities.formatDate(new Date(Number(r.ts)||Date.now()),"America/Mexico_City","yyyy-MM-dd")}
  const ext=[r.colonia||"",r.cp||"",r.correo||""];
- const sc=sh_("Capturas");
+ const sc=sh_("Capturas");cab_("Capturas");
  /* Ubicación: GPS en el domicilio, o coordenadas escritas a mano, o se ubica después por la dirección (cada madrugada). */
  const mA=Number(r.latM),mO=Number(r.lngM),man=!conGps&&enMx_(mA,mO);
  const lat=conGps?r.lat:man?mA:"",lng=conGps?r.lng:man?mO:"",ori=conGps?"GPS":man?"Escrita a mano":(r.direccion||r.colonia?"Pendiente":"");
@@ -363,6 +362,6 @@ function guardar_(q,r){
   ap.appendRow([r.id,clave,mun,r.programa,r.eje||"",r.area||"",r.monto||"",r.fecha||"",eLa,eLo,ben,apo,r.id,aviso,r.evento||"",r.tipo||"",r.canal||""])
  }
  sc.appendRow([r.id,ts,q.id,mun,estado,curp,folio,nombre,r.localidad||"",r.tel||"",r.direccion||"",lat,lng,grupos,
-  r.programa||"",r.eje||"",r.area||"",r.monto||"",r.fecha||"",ben,apo,ine,r.notas||"",motivo,nac,sexo,r.evento||"",r.tipo||"",r.canal||"",...ext,iner,ori]);
+  r.programa||"",r.eje||"",r.area||"",r.monto||"",r.fecha||"",ben,apo,ine,r.notas||"",motivo,nac,sexo,r.evento||"",r.tipo||"",r.canal||"",...ext,iner,ori,String(r.grupo_otro||"").trim().slice(0,80)]);
  return{ok:true}}
  finally{L.releaseLock()}}

@@ -76,6 +76,7 @@ input[readonly]{opacity:.65}
 <label for="dir">Domicilio (calle y número)</label><input id="dir" autocomplete="off">
 <div class="r"><div><label for="col">Colonia</label><input id="col" autocomplete="off"></div><div><label for="cp">Código postal</label><input id="cp" inputmode="numeric" maxlength="5"></div></div>
 <label>Grupos poblacionales</label><div id="gr"></div>
+<input id="gro" maxlength="80" placeholder="Escriba cuál otro grupo" hidden>
 <label>Foto de la persona</label><input id="fb" type="file" accept="image/*" capture="user">
 </div>
 <div id="ubb"><label>Ubicación del domicilio</label><button class="s" onclick="geo()" id="bg" style="margin-top:0">Estoy en el domicilio: tomar ubicación GPS</button><div class="st" id="gs">Sin ubicación todavía (obligatoria)</div>
@@ -129,6 +130,8 @@ if(!API.startsWith("PEGUE")){const q=new URLSearchParams(location.search);if(q.g
   document.querySelector('link[rel="manifest"]').href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/manifest+json"}))}catch(e){}}
 const MOTIVOS=["Captura fuera del domicilio (oficina, evento)","GPS sin señal o no funciona","La persona no permitió tomar la ubicación","Domicilio de difícil acceso","Otro (explicar en Notas)"];
 const SEXOS=["Mujer","Hombre"];
+/* Grupos de base; se suman los que el ayuntamiento agregue en Catalogos (tipo grupo). "Otro" pide escribirlo. */
+const GRUPOS=["Persona adulta mayor", "Persona con discapacidad", "Mujer jefa de familia", "Mujer", "Madre soltera", "Persona indígena", "Persona afromexicana", "Persona joven", "Niñas y niños", "Estudiante", "Campesino o productor rural", "Comerciante o locatario", "Emprendedor o microempresario", "Persona trabajadora", "Persona desempleada", "Persona migrante o retornada", "Persona en situación de calle", "Deportista", "Artesano", "Persona artista o cultural", "Familia en situación de vulnerabilidad", "Persona con enfermedad crónica", "Persona con necesidad de vivienda", "Habitante de comunidad rural con rezago", "Persona cuidadora", "Víctima de violencia", "Persona LGBTTTIQ+", "Persona viuda", "Niñas, niños u adolescentes en orfandad", "Persona pensionada o jubilada", "Mujer embarazada o lactante", "Persona jornalera agrícola", "Persona trabajadora del hogar", "Ganadero o apicultor", "Transportista o taxista", "Persona en rehabilitación por adicciones", "Persona liberada de un centro penitenciario", "Persona damnificada por desastre", "Colectivo u organización civil", "Grupo religioso"],OTRO="Otro (especificar)";
 const CURP=/^[A-Z]{4}\d{6}[HM][A-Z]{2}[B-DF-HJ-NP-TV-Z]{3}[A-Z\d]\d$/,$=i=>document.getElementById(i),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let S=null,GP=null,busy=false,EX=null,PERS=null;
 const DB=new Promise((ok,er)=>{const r=indexedDB.open("padron",1);r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore("cola",{keyPath:"id"});d.createObjectStore("meta");d.createObjectStore("hist",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>er(r.error)});
@@ -205,7 +208,8 @@ function mostrar(){$("login").hidden=true;$("app").hidden=false;$("adm").hidden=
  $("dl-loc").innerHTML=opts(S.cat.localidad).replace('<option value=""></option>',"");
  pintaEv();MO=S.modo?evLista().find(e=>e.id===S.modo)||null:null;aplicaModo();
  $("mg").innerHTML=opts(MOTIVOS,"Elija el motivo");$("sx").innerHTML=opts(SEXOS,"Elija");
- $("gr").innerHTML=(S.cat.grupo||[]).map((g,i)=>`<div class="ck"><input type="checkbox" id="g${i}" value="${esc(g)}"><label for="g${i}" style="margin:0;color:var(--ink)">${esc(g)}</label></div>`).join("");
+ $("gr").innerHTML=[...new Set([...GRUPOS,...(S.cat.grupo||[]).map(g=>String(g).trim()).filter(g=>g&&g!==OTRO)]),OTRO].map((g,i)=>`<div class="ck"><input type="checkbox" id="g${i}" value="${esc(g)}"><label for="g${i}" style="margin:0;color:var(--ink)">${esc(g)}</label></div>`).join("");
+ $("g"+($("gr").children.length-1)).onchange=e=>{$("gro").hidden=!e.target.checked;if($("gro").hidden)$("gro").value=""};
  $("nac").max=hoy();persistir().then(pinta);pinta();sync()}
 async function refrescar(){try{if(!navigator.onLine||!S)return;const x=await post({a:"login",clave:S.clave});if(x.ok){S.cat=x.cat;S.rol=x.rol;$("adm").hidden=S.rol!=="admin";const ya=(x.cat.evento||[]).map(e=>e.id);S.evl=(S.evl||[]).filter(e=>ya.indexOf(e.id)<0);await put("meta",S,"s");pintaEv()}else if(x.error==="clave")msg("Su clave ya no es válida. Pida una nueva.","e")}catch(e){}}
 
@@ -278,15 +282,16 @@ async function guardar(){const curp=$("curp").value.trim().toUpperCase(),nom=EX|
  const ev=ap?evSel():null;if(ap&&!ev)return msg("Elija el apoyo que recibe la persona.","e");
  if(ev&&sinMonto(ev)&&!$("mo").value)return msg("Escriba el monto entregado.","e");
  const cp=EX?"":$("cp").value.trim();if(cp&&!/^\d{5}$/.test(cp))return msg("El código postal lleva 5 números.","e");
+ const go=EX?"":$("gro").hidden?"":$("gro").value.trim();if(!EX&&!$("gro").hidden&&!go)return msg("Escriba cuál es el otro grupo.","e");
  $("bs").disabled=true;
  try{const v=i=>EX?"":$(i).value.trim();
  const r={id:Date.now().toString(36)+Math.random().toString(36).slice(2,8),ts:Date.now(),curp,nombre:nom,nacimiento:EX?"":nac,sexo:EX?"":sx,localidad:v("loc"),tel:v("tel"),direccion:v("dir"),colonia:v("col"),cp,correo:v("mail"),lat:GP?GP.lat:"",lng:GP?GP.lng:"",latM:cm?cm[0]:"",lngM:cm?cm[1]:"",sinGps:mg,
- grupos:EX?[]:[...document.querySelectorAll("#gr input:checked")].map(i=>i.value),notas:$("no").value.trim(),aviso:true,fotoBen:EX?"":await comp($("fb").files[0]),fotoIne:EX?"":await comp($("fi").files[0]),fotoIneR:EX?"":await comp($("fr").files[0])};
+ grupos:EX?[]:[...document.querySelectorAll("#gr input:checked")].map(i=>i.value===OTRO?"Otro: "+go:i.value),grupo_otro:go,notas:$("no").value.trim(),aviso:true,fotoBen:EX?"":await comp($("fb").files[0]),fotoIne:EX?"":await comp($("fi").files[0]),fotoIneR:EX?"":await comp($("fr").files[0])};
  /* Se manda la definición completa del apoyo: si el servidor aún no lo tiene, lo crea. */
  if(ev)Object.assign(r,{evento:ev.id,ev,programa:ev.programa||ev.n,monto:sinMonto(ev)?+$("mo").value:ev.monto,fotoApoyo:await comp($("fa").files[0])});
  r.de=S.clave+"|"+(S.m||"");await put("cola",r);
  ["curp","nom","nac","sx","loc","tel","mail","dir","col","cp","no","mo","evt","fb","fi","fr","fa","co"].forEach(i=>$(i).value="");$("mob").hidden=true;$("evd").textContent="";$("dc").textContent="";$("ap").checked=false;$("apb").hidden=true;$("av").checked=false;GP=null;$("gs").textContent="Sin ubicación todavía (obligatoria)";$("sgb").hidden=true;$("mg").value="";quitaEx();
- document.querySelectorAll("#gr input").forEach(i=>i.checked=false);if(MO)aplicaModo();msg("Registro guardado en este teléfono."+(MO?" Siga con la siguiente persona.":""),"o");if(MO)$("curp").focus();await pinta();sync()}
+ document.querySelectorAll("#gr input").forEach(i=>i.checked=false);$("gro").value="";$("gro").hidden=true;if(MO)aplicaModo();msg("Registro guardado en este teléfono."+(MO?" Siga con la siguiente persona.":""),"o");if(MO)$("curp").focus();await pinta();sync()}
  catch(e){msg("No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.","e")}
  finally{$("bs").disabled=false}}
 

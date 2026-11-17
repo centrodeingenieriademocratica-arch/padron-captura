@@ -38,7 +38,7 @@ Todo es gratis y queda en tu cuenta de Google. NO está probado con datos reales
 1. Hoja central → **Padrón → 2. Nuevo ayuntamiento** → escribe su nombre como lo verán los capturistas (ej. *Ayuntamiento de Chiautzingo*).
 2. Se crea sola su hoja "Padrón de beneficiarios · Chiautzingo" en la misma carpeta, su carpeta privada de fotos y su primera clave (administrador). Aparecen **el enlace de la app y la clave del administrador**: copia ambos (la clave no se vuelve a mostrar; el enlace queda en la hoja Ayuntamientos).
 3. Entrega al administrador del ayuntamiento el enlace, su clave y el *Instructivo para capturistas*. Con su clave, en la app, él da las claves a sus capturistas (*Claves de capturistas*) e importa sus listas de Excel (*Importar lista de Excel*).
-4. Opcional: en la hoja del ayuntamiento, **Catalogos** (municipio = `*`): localidades (tipo `localidad`), grupos (tipo `grupo`) y el **aviso de privacidad** (tipo `aviso`, texto completo en valor).
+4. Opcional: en la hoja del ayuntamiento, **Catalogos** (municipio = `*`): localidades (tipo `localidad`), grupos extra (tipo `grupo`; la app ya trae unos 40 grupos comunes y «Otro (especificar)», que obliga a escribir cuál y se guarda en la columna `grupo_otro` de Capturas) y el **aviso de privacidad** (tipo `aviso`, texto completo en valor).
 5. **Que el ayuntamiento vea su padrón**: botón **Compartir** de su hoja → correo de su enlace → *Lector*. Esa hoja es su padrón integral. Se descarga a Excel con Archivo → Descargar.
 
 ## Uso diario
