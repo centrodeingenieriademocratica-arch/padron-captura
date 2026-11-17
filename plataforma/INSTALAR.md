@@ -9,7 +9,9 @@ Se hace en computadora, una sola vez.
 3. En la hoja, ir a Extensiones › Apps Script. Copiar todo el texto de `plataforma/servidor/Codigo.gs` desde GitHub, pegarlo en lugar de lo que haya en Código.gs y guardar.
 4. Implementar › Nueva implementación › Aplicación web, con «Ejecutar como: Yo» y «Quién tiene acceso: Cualquier usuario». Aceptar los permisos.
 5. Volver a la hoja y recargarla. En el menú Padrón › 1. Configurar este ayuntamiento, escribir el nombre del ayuntamiento y dejar vacío el enlace corto.
-6. Aparece el enlace del administrador. Entregarlo en persona: no se vuelve a mostrar. Si se pierde, usar Padrón › 2. Nuevo enlace de administrador.
+6. Aparece el enlace del administrador. Ojo: desde la hoja, Google pone en el enlace una dirección que no sirve para el público. Cambie lo que va antes de `?u=` por la dirección /exec que dio Implementar (paso 4), o mejor pegue esa dirección antes, en la pestaña Config, clave `URL_APP`. Entregarlo en persona: no se vuelve a mostrar. Si se pierde, usar Padrón › 2. Nuevo enlace de administrador.
+   - Los enlaces que se creen después desde la app ya salen bien.
+   - En una computadora con varias cuentas de Google abiertas, la app puede decir «No se pudo abrir el archivo». Ábrala en el celular o en una ventana de incógnito.
 7. Abrir ese enlace en el celular. Dar de alta los programas, los eventos y los usuarios desde «Programas, eventos y usuarios».
 
 ## Para actualizar
