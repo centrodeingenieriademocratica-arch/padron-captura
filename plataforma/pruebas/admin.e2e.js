@@ -61,7 +61,7 @@ const srv = http.createServer((q, r) => {
   await pg.click('text=Ver como capturista'); await t(1500);
   const cap = vistos[vistos.length - 1].split('u=')[1];
   const l = A.post({ token: cap, a: 'login' });
-  ok(l.ok && l.usuario.rol === 'capturista' && l.usuario.areas.length > 10, 'ver como capturista entra con ese rol y todas las áreas');
+  ok(l.ok && l.usuario.rol === 'capturista' && l.usuario.areas.length > 10 && l.usuario.soloLectura === true, 'ver como capturista entra con ese rol, todas las áreas y solo para mirar');
   await pg.click('text=Ver como responsable'); await t(1500);
   await pg.click('text=Ver como capturista'); await t(800);
   ok(vistos[vistos.length - 1].split('u=')[1] === cap, 'el enlace de vista se reutiliza');

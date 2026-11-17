@@ -76,7 +76,7 @@ async function entrar() {
 function mostrar() {
   $('tit').textContent = S.municipio || 'Padrón de beneficiarios';
   $('sub').textContent = S.usuario.nombre + (S.usuario.areas.length ? ' · ' + S.usuario.areas.join(', ') : '');
-  $('hola').textContent = DEMO ? 'MUESTRA: no hay servidor configurado; nada se envía.' : 'Hola, ' + S.usuario.nombre + '.';
+  $('hola').textContent = DEMO ? 'MUESTRA: no hay servidor configurado; nada se envía.' : S.usuario.soloLectura ? 'Solo para mirar: así ve la app este rol. Nada se guarda.' : 'Hola, ' + S.usuario.nombre + '.';
   const gest = ['admin', 'responsable'].indexOf(S.usuario.rol) >= 0;
   $('b-adm').hidden = !gest; $('adm-u').hidden = S.usuario.rol !== 'admin';
   $('b-sol').hidden = S.usuario.rol === 'consulta';
@@ -221,7 +221,7 @@ async function guardaEntrega() {
     representante: $('rep').value.trim(), evidencia: evid, lat: g ? g.lat : '', lng: g ? g.lng : '', datos_extra: Object.keys(extra).length ? extra : '' };
   $('b-ent').disabled = true;
   try { await encola('entrega', d, p.nombre + ' → ' + SEL.nombre); msg('Entrega guardada: ' + SEL.nombre + '.'); SEL = null; $('q').value = ''; $('res').innerHTML = ''; PILA = []; ir(MODO_EV ? 'v-bus' : 'v-ini', true); }
-  catch (e) { msg('No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.', 'e'); }
+  catch (e) { if (e.message !== 'solo_lectura') msg('No se pudo guardar en el teléfono. Libere espacio e intente de nuevo.', 'e'); }
   finally { $('b-ent').disabled = false; }
 }
 
@@ -259,7 +259,10 @@ async function guardaSolicitud() {
 }
 
 /* ---------- Cola y envío ---------- */
+/* «Ver como» desde la app de mando del Centro: se mira, no se guarda. */
+function soloMirar() { if (S && S.usuario && S.usuario.soloLectura) { msg('Solo para mirar: aquí no se guarda nada.', 'w'); return true; } return false; }
 async function encola(tipo, datos, texto) {
+  if (soloMirar()) throw new Error('solo_lectura');
   await pon('ops', { op_id: rid('OP'), tipo, datos, texto, ts: Date.now(), estado: 'pendiente' });
   pintaEstado(); enviar();
 }
@@ -323,12 +326,14 @@ async function guardaPrograma() {
   const d = { id: rid('P'), nombre: n, area: $('pa-a').value, tipo_apoyo: $('pa-t').value, tipo_beneficiario: $('pa-b').value, unidad: $('pa-u').value,
     monto_unitario: $('pa-m').value === '' ? '' : +$('pa-m').value, periodicidad: $('pa-p').value, fuente_recurso: $('pa-f').value,
     evidencia: [...document.querySelectorAll('#pa-e input:checked')].map(i => i.value), confidencial: $('pa-c').checked, campos_extra: [] };
+  if (soloMirar()) return;
   S.programas.push(Object.assign({ local: true }, d)); guardaSesion(); await encola('programa', d, 'Programa: ' + n);
   $('pa-n').value = ''; $('pa-m').value = ''; $('pa-c').checked = false; pintaAdmin(); msg('Programa guardado. Ya se puede elegir al registrar.');
 }
 async function guardaEvento() {
   const n = $('ev-n').value.trim(), p = $('ev-p').value; if (!n || !p) return msg('Escriba el nombre y elija el apoyo.', 'e');
   const g = G.ev, d = { id: rid('EV'), nombre: n, programa_id: p, fecha: $('ev-f').value || hoy(), lugar: $('ev-l').value.trim(), localidad: $('ev-lo').value.trim(), lat: g ? g.lat : '', lng: g ? g.lng : '' };
+  if (soloMirar()) return;
   S.eventos.push(Object.assign({ local: true }, d)); guardaSesion(); await encola('evento', d, 'Evento: ' + n);
   $('ev-n').value = ''; $('ev-l').value = ''; G.ev = null; $('gps-ev').textContent = ''; msg('Evento guardado. Ábralo en “Entrega en evento o fila”.');
 }
