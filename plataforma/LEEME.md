@@ -8,9 +8,11 @@ Reemplaza a la app de captura v13 (archivos de la raíz del repositorio), que si
 - **app/**: la app para celular. Como en la herramienta de estructura, la sirve el propio Apps Script del ayuntamiento en su dirección `/exec?u=CODIGO`. El servidor la toma de GitHub y la renueva cada 6 horas, así que las mejoras llegan a todos sin volver a pegar nada. Abierta como archivo suelto, sin servidor, funciona en modo de muestra.
   - Buscar persona, alta (persona, hogar, grupo, institución, obra o unidad productiva; menor con tutor; CURP llena fecha y sexo), entrega en 3 pasos (quién recibe, apoyo y cantidad, evidencia: foto, firma, "no sabe firmar", folio de lista en papel, ubicación), entrega en evento o fila, solicitudes, pendientes y administración (programas, eventos, lotes, usuarios).
   - Todo se guarda primero en el teléfono y se envía solo cuando hay señal; si se envía dos veces no se duplica.
+- **consola/**: Consola del Centro. Una sola web app en la cuenta del Centro (solo esa cuenta entra) para ver y hacer todo en todos los municipios: datos, usuarios, y la app como cualquier rol. Cómo instalarla: `consola/INSTALAR_CONSOLA.md`.
 - **pruebas/**: un simulador de Apps Script para probar sin Google.
   - `node plataforma/pruebas/servidor.test.js`: reglas del servidor.
   - `node plataforma/pruebas/app.e2e.js`: la app completa en un navegador sin pantalla (administrador y capturista, sin señal y con señal).
+  - `node plataforma/pruebas/consola.test.js`: la Consola del Centro con dos municipios simulados.
   - `node plataforma/pruebas/servidor-local.js`: abre la app con el servidor simulado en http://localhost:8080 para revisarla a mano.
 
 ## Modelo de datos (una pestaña por tabla)
