@@ -7,7 +7,9 @@
    - Quien captura solo recibe nombres (y localidad) de lo que busca; nunca el padrón completo.
    Probado solo en el simulador (plataforma/pruebas/servidor.test.js). NO PROBADO en Google real. */
 
-const VERSION = 'F1.3';
+const VERSION = 'F1.4';
+/* Registro de municipios del Centro: cada municipio se anota solo (nombre y dirección, nunca claves). */
+const REGISTRO_CENTRO = '';
 const TZ = 'America/Mexico_City';
 
 /* ---------- Modelo de datos: una pestaña por tabla. Las columnas nuevas se agregan siempre al final. ---------- */
@@ -214,6 +216,16 @@ function recuerdaUrl_() {
     const u = ScriptApp.getService().getUrl() || '';
     if (/\/exec$/.test(u) && config_('URL_EXEC') !== u) ponConfig_('URL_EXEC', u);
     c.put('url_ok', '1', 21600);
+    anotaEnRegistro_(u);
+  } catch (err) {}
+}
+/* Se anota en el registro del Centro para aparecer solo en la app de administrador. Sin claves. */
+function anotaEnRegistro_(u) {
+  const reg = config_('REGISTRO') || REGISTRO_CENTRO, url = /\/exec$/.test(u || '') ? u : config_('URL_EXEC');
+  if (!reg || !/\/exec$/.test(url || '')) return;
+  try {
+    UrlFetchApp.fetch(reg, { method: 'post', contentType: 'text/plain', muteHttpExceptions: true,
+      payload: JSON.stringify({ a: 'anotar', nombre: config_('MUNICIPIO'), url, corta: config_('URL_CORTA'), version: VERSION }) });
   } catch (err) {}
 }
 function doGet(e) {
@@ -296,6 +308,8 @@ function atiende_(u, d) {
     case 'usuarios': return esAdmin_(u) ? usuarios_() : { ok: false, error: 'permiso' };
     case 'crearUsuario': return crearUsuarioWeb_(u, d);
     case 'bajaUsuario': return bajaUsuario_(u, d);
+    case 'resumen': return esAdmin_(u) ? resumenMunicipio_(d) : { ok: false, error: 'permiso' };
+    case 'actualizar': return esAdmin_(u) ? actualizar_() : { ok: false, error: 'permiso' };
     default: return { ok: false, error: 'accion' };
   }
 }
@@ -671,4 +685,32 @@ function bajaUsuario_(u, d) {
   cambia_('Usuarios', f.fila, 'activo', 'NO');
   bitacora_(u, 'baja_usuario', 'Usuarios', f.o.id, 'activo', 'SI', 'NO', txt_(d.motivo, 200));
   return { ok: true };
+}
+
+/* ---------- Para la app de administrador del Centro (solo administrador) ---------- */
+/* Números del municipio: lo vencido y lo que requiere atención. Vencido: solicitud abierta con más de d.dias (30) días
+   y evento abierto con fecha pasada. Atención: registros en Revisar, entregas con alerta y personas sin CURP (Provisional). */
+function resumenMunicipio_(d) {
+  const hoy = hoy_(), mes = hoy.slice(0, 7), dias = Math.min(365, Math.max(1, Number(d && d.dias) || 30));
+  const limite = Utilities.formatDate(new Date(Date.now() - dias * 864e5), TZ, 'yyyy-MM-dd');
+  const ben = filas_('Beneficiarios').filter(b => String(b.activo).toUpperCase() !== 'NO');
+  const ent = filas_('Entregas').filter(e => e.estado !== 'Cancelada');
+  const cerradas = ['Entregada', 'Rechazada', 'Cancelada'];
+  const sol = filas_('Solicitudes').filter(x => cerradas.indexOf(String(x.estatus)) < 0);
+  const evs = filas_('Eventos').filter(x => x.estado !== 'Cerrado');
+  return { ok: true, version: VERSION, municipio: config_('MUNICIPIO'), dias,
+    beneficiarios: ben.length, provisionales: ben.filter(b => b.estado === 'Provisional').length,
+    beneficiarios_revisar: ben.filter(b => b.estado === 'Revisar').length,
+    entregas: ent.length, entregas_mes: ent.filter(e => fecha_(e.fecha).slice(0, 7) === mes).length,
+    entregas_revisar: ent.filter(e => e.estado === 'Revisar').length,
+    entregas_alerta: ent.filter(e => String(e.alerta)).length,
+    solicitudes_abiertas: sol.length, solicitudes_vencidas: sol.filter(x => fecha_(x.fecha) && fecha_(x.fecha) < limite).length,
+    eventos_vencidos: evs.filter(x => fecha_(x.fecha) && fecha_(x.fecha) < hoy).length,
+    usuarios: filas_('Usuarios').filter(x => String(x.activo).toUpperCase() === 'SI').length };
+}
+/* Borra las copias guardadas para que el servidor y la app se tomen de la versión maestra en este momento. */
+function actualizar_() {
+  const c = CacheService.getScriptCache();
+  c.remove('app_html'); c.remove('nucleo');
+  return { ok: true, version: VERSION };
 }
