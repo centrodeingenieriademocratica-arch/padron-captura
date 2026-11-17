@@ -7,6 +7,7 @@ function prueba(nombre, f) {
   n++;
   try { f(); console.log('ok   ' + nombre); } catch (e) { fallas++; console.log('FALLA ' + nombre + '\n      ' + e.message); }
 }
+const Utilities_fecha = d => new Date(Date.now() + d * 864e5).toISOString().slice(0, 10);
 const op = (tipo, datos, id) => ({ op_id: id || ('OP-' + Math.random().toString(36).slice(2, 10).toUpperCase()), tipo, datos });
 
 const S = crear();
@@ -220,6 +221,25 @@ prueba('la app se puede abrir dentro de la dirección corta', () => {
   const o = S.doGet({ parameter: { u: adm } });
   assert.strictEqual(o.marco, 'ALLOWALL');
   assert.ok(/Atlixco|Prueba/.test(o.titulo));
+});
+
+prueba('resumen para la app de mando: solo administrador, con vencidos y atención', () => {
+  assert.strictEqual(S.post({ token: dif, a: 'resumen' }).error, 'permiso');
+  const viejo = Utilities_fecha(-60);
+  S.agrega_('Solicitudes', { id: 'S-VIEJA0001', beneficiario_id: 'X', area: 'DIF', fecha: viejo, descripcion: 'x', estatus: 'Recibida' });
+  S.agrega_('Solicitudes', { id: 'S-VIEJA0002', beneficiario_id: 'X', area: 'DIF', fecha: viejo, descripcion: 'x', estatus: 'Entregada' });
+  S.agrega_('Eventos', { id: 'E-PASADO001', nombre: 'Feria', programa_id: 'P', area: 'DIF', fecha: viejo, estado: 'Abierto' });
+  const r = S.post({ token: adm, a: 'resumen' });
+  assert.ok(r.ok, JSON.stringify(r));
+  assert.ok(r.solicitudes_vencidas >= 1 && r.eventos_vencidos >= 1);
+  assert.strictEqual(S.post({ token: adm, a: 'resumen', dias: 90 }).solicitudes_vencidas, r.solicitudes_vencidas - 1);
+  ['beneficiarios', 'entregas_mes', 'beneficiarios_revisar', 'entregas_alerta', 'usuarios'].forEach(k => assert.strictEqual(typeof r[k], 'number', k));
+});
+prueba('actualizar borra las copias para tomar la versión maestra (solo administrador)', () => {
+  S.cache.app_html = 'x'; S.cache.nucleo = 'y';
+  assert.strictEqual(S.post({ token: dif, a: 'actualizar' }).error, 'permiso');
+  assert.ok(S.post({ token: adm, a: 'actualizar' }).ok);
+  assert.ok(!S.cache.app_html && !S.cache.nucleo);
 });
 
 console.log('\n' + (n - fallas) + ' de ' + n + ' pruebas pasaron.');

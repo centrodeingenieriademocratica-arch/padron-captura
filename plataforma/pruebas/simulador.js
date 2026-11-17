@@ -48,7 +48,7 @@ class Hoja {
   setFrozenRows() {}
 }
 function crear(opciones = {}) {
-  const hojas = {}, props = {}, cache = {};
+  const hojas = opciones.hojas || {}, props = opciones.props || {}, cache = {};
   const libro = {
     getSheetByName: n => hojas[n] || null,
     insertSheet: n => (hojas[n] = new Hoja(n)),
@@ -75,17 +75,18 @@ function crear(opciones = {}) {
     CacheService: { getScriptCache: () => ({ get: k => cache[k] || null, put: (k, v) => { cache[k] = v; }, remove: k => { delete cache[k]; } }) },
     ScriptApp: { getService: () => ({ getUrl: () => null }) },
     /* GitHub simulado: lee los archivos de plataforma/app. opciones.sinRed simula GitHub caído. */
-    UrlFetchApp: { fetch: (url) => {
-      const f = path.join(__dirname, '..', 'app', url.split('/').pop());
+    UrlFetchApp: { fetch: function (url) {
+      const nom = url.split('/').pop(), f = path.join(__dirname, '..', /\.gs$/.test(nom) ? 'servidor' : 'app', nom);
+      if (opciones.fetch) { const r = opciones.fetch(url, arguments[1]); if (r) return r; }
       const ok = !opciones.sinRed && fs.existsSync(f);
       return { getResponseCode: () => ok ? 200 : 404, getContentText: () => ok ? fs.readFileSync(f, 'utf8') : '' };
     } }
   };
   vm.createContext(ctx);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'servidor', 'Codigo.gs'), 'utf8'), ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'servidor', opciones.archivo || 'Codigo.gs'), 'utf8'), ctx);
   /* Llamada como la haría la app: POST con JSON. */
   ctx.post = (body) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(body) } }).contenido);
-  ctx.hojas = hojas; ctx.cache = cache; ctx.opciones = opciones;
+  ctx.hojas = hojas; ctx.props = props; ctx.cache = cache; ctx.opciones = opciones;
   /* Abrir la dirección /exec como en un navegador: devuelve el HTML de la app. */
   ctx.abrir = (parametros) => ctx.doGet({ parameter: parametros || {} }).contenido;
   return ctx;
