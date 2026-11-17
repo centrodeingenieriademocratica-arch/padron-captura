@@ -1,12 +1,12 @@
 /* PADRÓN ÚNICO MUNICIPAL DE BENEFICIARIOS · Cargador (Google Apps Script)
    Esto es lo único que se pega en el Apps Script de cada ayuntamiento, una sola vez.
-   El servidor completo (la versión maestra) vive en GitHub: plataforma/servidor/Codigo.gs.
+   El servidor completo (la versión maestra) se publica en Cloudflare (sitio del padrón, armado desde plataforma/servidor/Codigo.gs).
    El cargador lo toma de ahí, lo guarda 6 horas y lo usa. Así cada cambio de la versión maestra llega solo a todos
-   los municipios, cada uno desde su propia cuenta. Si GitHub no responde, usa la última copia buena guardada.
+   los municipios, cada uno desde su propia cuenta. Si Cloudflare no responde, usa la última copia buena guardada.
    El administrador puede pedir la versión nueva al momento (acción «actualizar» o menú Padrón › 3).
    Probado solo en el simulador (plataforma/pruebas/cargador.test.js). */
 
-const FUENTE_NUCLEO = 'https://raw.githubusercontent.com/centrodeingenieriademocratica-arch/padron-captura/main/plataforma/servidor/Codigo.gs';
+const FUENTE_NUCLEO = 'https://padron-cid.pages.dev/servidor/Codigo.gs';
 const EXPORTA_ = ['doGet', 'doPost', 'api', 'onOpen', 'configurar', 'enlaceAdmin', 'actualizarApp'];
 
 let NUCLEO_ = null;
@@ -17,7 +17,7 @@ function nucleo_() {
   if (!src) {
     try {
       const r = UrlFetchApp.fetch(FUENTE_NUCLEO, { muteHttpExceptions: true });
-      if (r.getResponseCode() !== 200) throw new Error('github');
+      if (r.getResponseCode() !== 200) throw new Error('maestra');
       src = r.getContentText('UTF-8');
       if (src.indexOf('function atiende_(') < 0) throw new Error('forma');
       armaNucleo_(src); /* si no compila, no se guarda */
