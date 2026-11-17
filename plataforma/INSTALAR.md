@@ -19,16 +19,14 @@ Se hace en computadora, una sola vez.
 - Si cambia la app (`plataforma/app`), no hay que hacer nada: cada ayuntamiento la toma de GitHub y la renueva cada 6 horas. Para tenerla al momento: Padrón › 3. Actualizar la app ahora.
 - Si cambia `Codigo.gs`, pegarlo de nuevo y elegir Implementar › Gestionar implementaciones › Editar › Nueva versión. La dirección no cambia.
 
-## Enlace corto (opcional)
+## Dirección propia del Centro (enlace corto con nombre)
 
-Se hace igual que los de estructura, con un sitio nuevo en el proyecto de Firebase «CID enlaces». El sitio se llama, por ejemplo, `padron-chiautzingo`, y su `firebase.json` lleva esto:
+Igual que en estructura: cada ayuntamiento tiene su dirección `https://cid-padron-<municipio>.web.app` en el proyecto de Firebase «CID enlaces» (cuenta del Centro). La app se abre dentro de esa página, así que el celular siempre muestra la dirección del Centro, con su logo y su título al mandarla por WhatsApp. Los enlaces quedan así: `https://cid-padron-atlixco.web.app/ana-<código>`.
 
-```json
-{ "hosting": { "site": "padron-chiautzingo", "public": "vacio",
-  "redirects": [ { "source": "/:codigo", "destination": "https://script.google.com/macros/s/ID_DEL_SCRIPT/exec?u=:codigo", "type": 302 } ] } }
-```
-
-Después pegue `https://padron-chiautzingo.web.app` en la pestaña Config, en la clave `URL_APP`. Los enlaces nuevos saldrán cortos.
+1. En `plataforma/enlaces/sitios.json` agregar un renglón con el sitio, el municipio y la dirección `/exec`.
+2. Una sola vez por ayuntamiento: `firebase hosting:sites:create cid-padron-<municipio> --project cid-enlaces`.
+3. `node plataforma/enlaces/armar.js` y luego, desde `plataforma/enlaces`, `firebase deploy --only hosting`.
+4. En la hoja del ayuntamiento, pestaña Config, poner la clave `URL_CORTA` con `https://cid-padron-<municipio>.web.app`. Desde ese momento los enlaces nuevos (y los botones de WhatsApp) salen con la dirección corta. Los enlaces viejos siguen sirviendo.
 
 ## Sin señal
 

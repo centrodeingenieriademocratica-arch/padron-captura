@@ -208,6 +208,19 @@ prueba('baja de usuario: su enlace deja de servir', () => {
   assert.ok(S.post({ token: adm, a: 'bajaUsuario', id, motivo: 'Dejó el cargo' }).ok);
   assert.strictEqual(S.post({ token: t, a: 'login' }).error, 'enlace');
 });
+prueba('con dirección corta: enlace con nombre de pila y código en minúsculas, y entra', () => {
+  S.ponConfig_('URL_CORTA', 'https://cid-padron-prueba.web.app/');
+  const r = S.post({ token: adm, a: 'crearUsuario', nombre: 'José Ángel Pérez', rol: 'capturista', areas: ['DIF'] });
+  assert.strictEqual(r.enlace, 'https://cid-padron-prueba.web.app/jose-' + r.token.toLowerCase());
+  assert.ok(S.post({ token: 'jose-' + r.token.toLowerCase(), a: 'login' }).ok, 'entra con nombre-código');
+  assert.ok(S.post({ token: r.token.toLowerCase(), a: 'login' }).ok, 'entra con el código en minúsculas');
+  S.ponConfig_('URL_CORTA', '');
+});
+prueba('la app se puede abrir dentro de la dirección corta', () => {
+  const o = S.doGet({ parameter: { u: adm } });
+  assert.strictEqual(o.marco, 'ALLOWALL');
+  assert.ok(/Atlixco|Prueba/.test(o.titulo));
+});
 
 console.log('\n' + (n - fallas) + ' de ' + n + ' pruebas pasaron.');
 process.exit(fallas ? 1 : 0);

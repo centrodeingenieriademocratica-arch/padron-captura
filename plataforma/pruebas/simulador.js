@@ -71,7 +71,7 @@ function crear(opciones = {}) {
       }
     },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: s => ({ setMimeType() { return this; }, contenido: s }) },
-    HtmlService: { createHtmlOutput: s => { const o = { contenido: s, setTitle(t) { o.titulo = t; return o; }, addMetaTag() { return o; } }; return o; } },
+    HtmlService: { XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' }, createHtmlOutput: s => { const o = { contenido: s, setTitle(t) { o.titulo = t; return o; }, addMetaTag() { return o; }, setXFrameOptionsMode(m) { o.marco = m; return o; }, setFaviconUrl(u) { o.icono = u; return o; } }; return o; } },
     CacheService: { getScriptCache: () => ({ get: k => cache[k] || null, put: (k, v) => { cache[k] = v; }, remove: k => { delete cache[k]; } }) },
     ScriptApp: { getService: () => ({ getUrl: () => null }) },
     /* GitHub simulado: lee los archivos de plataforma/app. opciones.sinRed simula GitHub caído. */

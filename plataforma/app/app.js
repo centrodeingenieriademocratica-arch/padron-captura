@@ -342,8 +342,21 @@ async function creaUsuario() {
   if (!n) return msg('Escriba el nombre.', 'e'); if (rol !== 'admin' && !areas.length) return msg('Elija al menos un área.', 'e');
   if (!navigator.onLine && !DEMO) return msg('Crear usuarios necesita señal.', 'w');
   try { const x = await post({ a: 'crearUsuario', nombre: n, rol, areas });
-    $('us-out').innerHTML = x.ok ? '<b>' + esc(n) + '</b>: <a href="' + esc(x.enlace) + '">' + esc(x.enlace) + '</a><div class="st">Mándeselo solo a esa persona. No se vuelve a mostrar.</div>' : 'No se pudo crear.';
+    $('us-out').innerHTML = x.ok ? tarjetaEnlace(n, x.enlace) : 'No se pudo crear.';
     if (x.ok) { $('us-n').value = ''; document.querySelectorAll('#us-a input').forEach(i => i.checked = false); } } catch (e) { msg('No se pudo conectar.', 'e'); }
+}
+/* El enlace nuevo, con botones para mandarlo por WhatsApp o copiarlo. Se muestra una sola vez. */
+function tarjetaEnlace(n, enlace) {
+  const muni = (S && S.municipio) || 'su ayuntamiento', pila = n.split(/\s+/)[0];
+  const texto = 'Hola ' + pila + ', este es tu enlace personal al Padrón de beneficiarios de ' + muni + ':\n' + enlace + '\nÁbrelo en tu celular. Es solo para ti: no lo compartas.';
+  return '<b>' + esc(n) + '</b><div style="margin:6px 0"><a href="' + esc(enlace) + '" target="_blank" rel="noopener">' + esc(enlace) + '</a></div>' +
+    '<a href="https://wa.me/?text=' + encodeURIComponent(texto) + '" target="_blank" rel="noopener" class="btn wa">Mandar por WhatsApp</a>' +
+    '<button class="s" type="button" onclick="copiaEnlace(this,\'' + esc(enlace) + '\')">Copiar enlace</button>' +
+    '<div class="st">Mándeselo solo a esa persona. Por seguridad no se vuelve a mostrar: guárdelo o mándelo ahora.</div>';
+}
+function copiaEnlace(b, t) {
+  const ok = () => { b.textContent = 'Copiado'; };
+  try { navigator.clipboard.writeText(t).then(ok, () => prompt('Copie el enlace:', t)); } catch (e) { prompt('Copie el enlace:', t); }
 }
 async function verUsuarios() {
   try { const x = await post({ a: 'usuarios' }); if (!x.ok) return;
