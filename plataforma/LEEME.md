@@ -4,8 +4,8 @@ Reemplaza a la app de captura v13 (archivos de la raíz del repositorio), que si
 
 ## Cómo está armada
 
-- **servidor/Codigo.gs**: Apps Script de **un** ayuntamiento, pegado en su hoja, que vive en una cuenta de Google gratuita del ayuntamiento. Menú *Padrón → 1. Configurar* crea las pestañas, los catálogos base y el enlace del administrador.
-- **app/**: app instalable para celular (Firebase Hosting, un enlace corto por ayuntamiento). Lo único que cambia entre ayuntamientos es `app/config.js`. Sin servidor configurado abre en modo de muestra.
+- **servidor/Codigo.gs**: Apps Script de **un** ayuntamiento, pegado en su hoja, que vive en una cuenta de Google gratuita del ayuntamiento. Menú *Padrón → 1. Configurar* crea las pestañas, los catálogos base y el enlace del administrador. Cómo instalarlo: `INSTALAR.md`.
+- **app/**: la app para celular. Como en la herramienta de estructura, la sirve el propio Apps Script del ayuntamiento en su dirección `/exec?u=CODIGO`. El servidor la toma de GitHub y la renueva cada 6 horas, así que las mejoras llegan a todos sin volver a pegar nada. Abierta como archivo suelto, sin servidor, funciona en modo de muestra.
   - Buscar persona, alta (persona, hogar, grupo, institución, obra o unidad productiva; menor con tutor; CURP llena fecha y sexo), entrega en 3 pasos (quién recibe, apoyo y cantidad, evidencia: foto, firma, "no sabe firmar", folio de lista en papel, ubicación), entrega en evento o fila, solicitudes, pendientes y administración (programas, eventos, lotes, usuarios).
   - Todo se guarda primero en el teléfono y se envía solo cuando hay señal; si se envía dos veces no se duplica.
 - **pruebas/**: un simulador de Apps Script para probar sin Google.
@@ -41,4 +41,4 @@ Reemplaza a la app de captura v13 (archivos de la raíz del repositorio), que si
 - Los casos confidenciales solo los encuentra su área.
 - Las correcciones directas son del administrador o del responsable del área, con motivo. Quien captura pide la corrección.
 
-Estado: probado solo en el simulador (23 pruebas del servidor y 14 de la app). **No probado en Google real ni en un teléfono real.**
+Estado: probado solo en el simulador (28 pruebas del servidor y 14 de la app). **No probado en Google real ni en un teléfono real.**

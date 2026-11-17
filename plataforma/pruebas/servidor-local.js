@@ -5,6 +5,8 @@ const { crear } = require('./simulador');
 const APP = path.join(__dirname, '..', 'app');
 const TIPOS = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml' };
 
+const SHIM = "window.google={script:{get run(){let ok=function(){},er=function(){};const r={withSuccessHandler(f){ok=f;return r},withFailureHandler(f){er=f;return r}," +
+  "api(b){fetch('/api',{method:'POST',body:JSON.stringify(b)}).then(x=>x.json()).then(ok,er)}};return r}}};";
 function arrancar(puerto) {
   const S = crear();
   const base = 'http://localhost:' + puerto;
@@ -18,6 +20,12 @@ function arrancar(puerto) {
       return;
     }
     const u = decodeURIComponent(q.url.split('?')[0]);
+    /* La raíz se comporta como la dirección /exec de Apps Script: el servidor arma la página y google.script.run se imita con /api. */
+    if (u === '/' || u === '/exec') {
+      const parametros = Object.fromEntries(new URL(q.url, base).searchParams);
+      const html = S.abrir(parametros).replace(/<head>/i, '<head><script>' + SHIM + '</script>');
+      r.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return r.end(html);
+    }
     if (u === '/config.js') { r.writeHead(200, { 'Content-Type': 'text/javascript' }); return r.end("window.PADRON = { servidor: '/api' };"); }
     const f = path.join(APP, u === '/' ? 'index.html' : u);
     if (!f.startsWith(APP) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end(); }

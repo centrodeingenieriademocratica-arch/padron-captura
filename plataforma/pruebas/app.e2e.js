@@ -26,6 +26,7 @@ const { arrancar } = require('./servidor-local');
     assert.ok(!pg.url().includes('u='));
     assert.strictEqual(await pg.textContent('#tit'), 'Ayuntamiento de Prueba');
     assert.ok(await pg.isVisible('#b-adm'));
+    assert.strictEqual(await pg.evaluate(() => !!GAS), true, 'corre como página de Apps Script');
   });
 
   await paso('da de alta un programa y llega al servidor', async () => {
