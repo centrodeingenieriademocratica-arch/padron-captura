@@ -7,7 +7,7 @@
    - Quien captura solo recibe nombres (y localidad) de lo que busca; nunca el padrón completo.
    Probado solo en el simulador (plataforma/pruebas/servidor.test.js). NO PROBADO en Google real. */
 
-const VERSION = 'F1.4';
+const VERSION = 'F1.5';
 /* Registro de municipios del Centro: cada municipio se anota solo (nombre y dirección, nunca claves). */
 const REGISTRO_CENTRO = '';
 const TZ = 'America/Mexico_City';
@@ -15,7 +15,7 @@ const TZ = 'America/Mexico_City';
 /* ---------- Modelo de datos: una pestaña por tabla. Las columnas nuevas se agregan siempre al final. ---------- */
 const HOJAS = {
   Config: ['clave', 'valor'],
-  Usuarios: ['id', 'nombre', 'rol', 'areas', 'token_hash', 'activo', 'creado', 'creado_por'],
+  Usuarios: ['id', 'nombre', 'rol', 'areas', 'token_hash', 'activo', 'creado', 'creado_por', 'solo_lectura'],
   Catalogos: ['tipo', 'valor', 'activo'],
   Programas: ['id', 'nombre', 'area', 'tipo_apoyo', 'tipo_beneficiario', 'unidad', 'monto_unitario', 'periodicidad',
     'fuente_recurso', 'evidencia', 'confidencial', 'campos_extra', 'activo', 'creado', 'creado_por'],
@@ -146,14 +146,15 @@ function usuario_(token) {
   if (!token) return null;
   const f = uno_('Usuarios', 'token_hash', huella_(token));
   if (!f || String(f.o.activo).toUpperCase() !== 'SI') return null;
-  return { id: f.o.id, nombre: f.o.nombre, rol: f.o.rol, areas: lista_(f.o.areas) };
+  return { id: f.o.id, nombre: f.o.nombre, rol: f.o.rol, areas: lista_(f.o.areas), soloLectura: String(f.o.solo_lectura).toUpperCase() === 'SI' };
 }
 const esAdmin_ = u => u.rol === 'admin';
 const puedeArea_ = (u, area) => esAdmin_(u) || u.areas.indexOf(String(area)) >= 0;
-function creaUsuario_(quien, nombre, rol, areas) {
+function creaUsuario_(quien, nombre, rol, areas, soloLectura) {
   const token = nuevoToken_(), id = nuevoId_('U');
+  encabezados_('Usuarios');
   agrega_('Usuarios', { id, nombre, rol, areas: lista_(areas).join(';'), token_hash: huella_(token), activo: 'SI',
-    creado: new Date(), creado_por: quien ? quien.id : 'instalacion' });
+    creado: new Date(), creado_por: quien ? quien.id : 'instalacion', solo_lectura: soloLectura ? 'SI' : '' });
   bitacora_(quien, 'alta_usuario', 'Usuarios', id, 'rol', '', rol);
   return { id, token, enlace: enlace_(token, nombre) };
 }
@@ -299,7 +300,10 @@ function leeCopia_() {
 }
 /* Menú: borra la copia guardada para que la app se tome de nuevo de GitHub en este momento. */
 function actualizarApp() { CacheService.getScriptCache().remove('app_html'); SpreadsheetApp.getUi().alert('Listo. La próxima vez que alguien abra la app tendrá la versión más reciente.'); }
+/* «Ver como» de la app de mando: el usuario de solo lectura mira todo lo de su rol, pero no guarda ni cambia nada. */
+const ESCRIBE_ = ['sync', 'crearUsuario', 'bajaUsuario', 'actualizar'];
 function atiende_(u, d) {
+  if (u.soloLectura && ESCRIBE_.indexOf(d.a) >= 0) return { ok: false, error: 'solo_lectura' };
   switch (d.a) {
     case 'login': return login_(u);
     case 'buscar': return buscar_(u, d);
@@ -334,7 +338,7 @@ function login_(u) {
     .map(ev => ({ id: ev.id, nombre: ev.nombre, programa_id: ev.programa_id, area: ev.area, fecha: fecha_(ev.fecha),
       lugar: ev.lugar, lat: ev.lat, lng: ev.lng, localidad: ev.localidad }));
   return { ok: true, version: VERSION, municipio: config_('MUNICIPIO'),
-    usuario: { id: u.id, nombre: u.nombre, rol: u.rol, areas: u.areas }, catalogos: catalogos_(), programas, eventos };
+    usuario: { id: u.id, nombre: u.nombre, rol: u.rol, areas: u.areas, soloLectura: !!u.soloLectura }, catalogos: catalogos_(), programas, eventos };
 }
 const fecha_ = x => x instanceof Date ? Utilities.formatDate(x, TZ, 'yyyy-MM-dd') : String(x || '');
 
@@ -674,7 +678,7 @@ function crearUsuarioWeb_(u, d) {
   if (!esAdmin_(u)) return { ok: false, error: 'permiso' };
   const nombre = txt_(d.nombre, 100), rol = ROLES.indexOf(d.rol) >= 0 ? d.rol : 'capturista', areas = lista_(d.areas);
   if (!nombre || (rol !== 'admin' && !areas.length)) return { ok: false, error: 'datos' };
-  const r = creaUsuario_(u, nombre, rol, areas);
+  const r = creaUsuario_(u, nombre, rol, areas, d.soloLectura === true);
   return { ok: true, id: r.id, enlace: r.enlace, token: r.token };
 }
 function bajaUsuario_(u, d) {

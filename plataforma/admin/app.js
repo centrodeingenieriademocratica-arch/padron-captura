@@ -111,7 +111,7 @@ function pinta() {
   $('muns').innerHTML = MUNS.map((m, i) => {
     const r = RES[m.url];
     let chips;
-    if (!B.llaves[m.url]) chips = '<span class="chip wn">Falta su clave: toque para escribirla</span>';
+    if (!B.llaves[m.url]) chips = '<span class="chip ok">Nuevo</span><span class="chip wn">Falta su clave: toque para escribirla</span>';
     else if (!r) chips = '<span class="chip">Cargando…</span>';
     else if (!r.ok) chips = '<span class="chip er">' + esc(r.error === 'enlace' ? 'La clave ya no sirve' : r.error === 'accion' ? 'Servidor sin actualizar' : 'No respondió') + '</span>';
     else {
@@ -147,19 +147,19 @@ async function vista(rol, renovar) {
   else {
     B.vistas[ACT.url] = B.vistas[ACT.url] || {};
     const ya = B.vistas[ACT.url][rol];
-    if (ya && !renovar) enlace = ya.enlace;
+    if (ya && ya.lectura && !renovar) enlace = ya.enlace;
     else {
       const l = await mun(ACT, { a: 'login' });
       if (!l.ok) { $('mu-st').textContent = ''; return msg('No se pudo entrar al municipio.', 'e'); }
-      const r = await mun(ACT, { a: 'crearUsuario', nombre: 'Centro (supervisión) ' + rol, rol, areas: (l.catalogos && l.catalogos.area) || [] });
+      const r = await mun(ACT, { a: 'crearUsuario', nombre: 'Centro (solo mirar) ' + rol, rol, areas: (l.catalogos && l.catalogos.area) || [], soloLectura: true });
       if (!r.ok) { $('mu-st').textContent = ''; return msg('No se pudo crear la vista.', 'e'); }
       if (ya) await mun(ACT, { a: 'bajaUsuario', id: ya.id, motivo: 'App de mando: enlace renovado' });
-      B.vistas[ACT.url][rol] = { id: r.id, enlace: ACT.url + '?u=' + r.token };
+      B.vistas[ACT.url][rol] = { id: r.id, enlace: ACT.url + '?u=' + r.token, lectura: true };
       await guarda();
       enlace = B.vistas[ACT.url][rol].enlace;
     }
   }
-  $('mu-st').textContent = rol === 'admin' ? 'Vista completa de administrador.' : 'Viendo como ' + rol + ', con todas las áreas.';
+  $('mu-st').textContent = rol === 'admin' ? 'Vista completa de administrador.' : 'Viendo como ' + rol + ', con todas las áreas. Solo para mirar: no se guarda nada.';
   $('fr').src = enlace;
 }
 function renovar() { if (ROL !== 'admin' && confirm('Se da de baja este enlace de vista y se crea otro. ¿Seguir?')) vista(ROL, true); }

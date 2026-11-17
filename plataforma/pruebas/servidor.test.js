@@ -241,6 +241,16 @@ prueba('actualizar borra las copias para tomar la versión maestra (solo adminis
   assert.ok(S.post({ token: adm, a: 'actualizar' }).ok);
   assert.ok(!S.cache.app_html && !S.cache.nucleo);
 });
+prueba('«ver como» de la app de mando: mira todo lo del rol, no guarda ni cambia nada', () => {
+  const v = S.post({ token: adm, a: 'crearUsuario', nombre: 'Centro (solo mirar) responsable', rol: 'responsable', areas: ['DIF'], soloLectura: true });
+  assert.ok(v.ok, JSON.stringify(v));
+  const l = S.post({ token: v.token, a: 'login' });
+  assert.ok(l.ok && l.usuario.soloLectura === true);
+  assert.notStrictEqual(S.post({ token: v.token, a: 'buscar', q: 'Maria' }).error, 'solo_lectura');
+  ['sync', 'crearUsuario', 'bajaUsuario', 'actualizar'].forEach(a => assert.strictEqual(S.post({ token: v.token, a, ops: [] }).error, 'solo_lectura', a));
+  const normal = S.post({ token: adm, a: 'crearUsuario', nombre: 'Normal', rol: 'responsable', areas: ['DIF'] });
+  assert.strictEqual(S.post({ token: normal.token, a: 'login' }).usuario.soloLectura, false);
+});
 
 console.log('\n' + (n - fallas) + ' de ' + n + ' pruebas pasaron.');
 process.exit(fallas ? 1 : 0);
