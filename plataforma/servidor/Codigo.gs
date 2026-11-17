@@ -97,7 +97,8 @@ function buscaFilas_(n, campo, valor) {
 const uno_ = (n, campo, valor) => (buscaFilas_(n, campo, valor)[0] || null);
 function cambia_(n, fila, campo, valor) { hoja_(n).getRange(fila, col_(n, campo)).setValue(valor); }
 
-function config_(k) { const f = uno_('Config', 'clave', k); return f ? String(f.o.valor) : ''; }
+/* Config es chica: se lee completa (en Google real el buscador de texto no encontró una clave escrita a mano). */
+function config_(k) { const f = filas_('Config').find(x => String(x.clave).trim() === k); return f ? String(f.valor).trim() : ''; }
 function ponConfig_(k, v) { const f = uno_('Config', 'clave', k); if (f) cambia_('Config', f.fila, 'valor', v); else agrega_('Config', { clave: k, valor: v }); }
 
 const norm_ = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
