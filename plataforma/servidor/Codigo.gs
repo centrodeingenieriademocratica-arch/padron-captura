@@ -1,7 +1,7 @@
 /* PADRÓN ÚNICO MUNICIPAL DE BENEFICIARIOS · Servidor (Google Apps Script)
    Fase 1, paso 1: modelo de datos y servidor base.
    - Una hoja por ayuntamiento, en una cuenta de Google gratuita del ayuntamiento (la consultora entra como editora).
-   - La app instalable (Firebase Hosting) captura sin señal y manda lotes de operaciones a doPost.
+   - La app la sirve este mismo script en su dirección /exec?u=CODIGO (doGet) y llama a api() con google.script.run; captura sin señal y manda lotes de operaciones.
    - Cada operación trae su propio id (op_id): si llega dos veces, se responde lo mismo y no se duplica.
    - Nada se borra: los cambios quedan en Bitacora con el valor anterior.
    - Quien captura solo recibe nombres (y localidad) de lo que busca; nunca el padrón completo.
