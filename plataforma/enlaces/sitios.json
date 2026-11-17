@@ -1,4 +1,6 @@
 [
   { "sitio": "cid-benefi-atlixco", "municipio": "Atlixco",
-    "exec": "https://script.google.com/macros/s/AKfycbz9oj4haN3P6Akz3_Qs7arJWWABSGPPTy3EMYTMTm3oVhuhP-L-76TihI0mrUY6eZ4mbg/exec" }
+    "exec": "https://script.google.com/macros/s/AKfycbz9oj4haN3P6Akz3_Qs7arJWWABSGPPTy3EMYTMTm3oVhuhP-L-76TihI0mrUY6eZ4mbg/exec" },
+  { "sitio": "cid-benefi-chiautzingo", "municipio": "Chiautzingo",
+    "exec": "https://script.google.com/macros/s/AKfycbwAf1KBvPKlHwY3VcXIeJ2QGIrg_gj2Ul9GLe37gcqicYLYIA59O6fJoR_cQnMfaJ8E/exec" }
 ]

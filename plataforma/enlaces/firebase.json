@@ -21,6 +21,28 @@
           ]
         }
       ]
+    },
+    {
+      "target": "cid-benefi-chiautzingo",
+      "public": "publico/cid-benefi-chiautzingo",
+      "cleanUrls": true,
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "/",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
