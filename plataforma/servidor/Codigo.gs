@@ -7,9 +7,9 @@
    - Quien captura solo recibe nombres (y localidad) de lo que busca; nunca el padrón completo.
    Probado solo en el simulador (plataforma/pruebas/servidor.test.js). NO PROBADO en Google real. */
 
-const VERSION = 'F1.6';
+const VERSION = 'F1.7';
 /* Registro de municipios del Centro: cada municipio se anota solo (nombre y dirección, nunca claves). */
-const REGISTRO_CENTRO = 'https://padron-cid.pages.dev/api/registro';
+const REGISTRO_CENTRO = ''; /* Opción B: el registro será un archivo chico en la cuenta del municipio, compartido solo para leer con el CID. */
 const TZ = 'America/Mexico_City';
 
 /* ---------- Modelo de datos: una pestaña por tabla. Las columnas nuevas se agregan siempre al final. ---------- */
@@ -257,9 +257,9 @@ function doPost(e) {
 }
 
 /* ---------- La página de la app ----------
-   Se toma del sitio del padrón en Cloudflare (se publica solo desde la rama main) y se guarda 6 horas. Así, cuando la app mejora, todos los ayuntamientos la reciben
-   sin volver a pegar nada. Si Cloudflare no responde, se usa la última copia buena guardada en el script. */
-const FUENTE_APP = 'https://padron-cid.pages.dev/app/';
+   Se toma de GitHub (rama main) y se guarda 6 horas. Así, cuando la app mejora, todos los ayuntamientos la reciben
+   sin volver a pegar nada. Si GitHub no responde, se usa la última copia buena guardada en el script. */
+const FUENTE_APP = 'https://raw.githubusercontent.com/centrodeingenieriademocratica-arch/padron-captura/main/plataforma/app/';
 function paginaApp_(token) {
   const conf = '<script>window.PADRON = ' + JSON.stringify({ gas: true, token, municipio: config_('MUNICIPIO'), corta: config_('URL_CORTA') }) + ';</script>';
   return armaApp_().replace('<!--CONFIG-->', conf);
@@ -298,7 +298,7 @@ function leeCopia_() {
   let h = ''; for (let i = 0; i < n; i++) h += pr.getProperty('APP_' + i) || '';
   return h;
 }
-/* Menú: borra la copia guardada para que la app se tome de nuevo de Cloudflare en este momento. */
+/* Menú: borra la copia guardada para que la app se tome de nuevo de GitHub en este momento. */
 function actualizarApp() { CacheService.getScriptCache().remove('app_html'); SpreadsheetApp.getUi().alert('Listo. La próxima vez que alguien abra la app tendrá la versión más reciente.'); }
 /* «Ver como» de la app de mando: el usuario de solo lectura mira todo lo de su rol, pero no guarda ni cambia nada. */
 const ESCRIBE_ = ['sync', 'crearUsuario', 'bajaUsuario', 'actualizar'];

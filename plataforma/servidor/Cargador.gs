@@ -1,12 +1,13 @@
 /* PADRÓN ÚNICO MUNICIPAL DE BENEFICIARIOS · Cargador (Google Apps Script)
    Esto es lo único que se pega en el Apps Script de cada ayuntamiento, una sola vez.
-   El servidor completo (la versión maestra) se publica en Cloudflare (sitio del padrón, armado desde plataforma/servidor/Codigo.gs).
+   El servidor completo (la versión maestra) hoy se toma de GitHub: plataforma/servidor/Codigo.gs.
+   Pendiente (estándar del Arquitecto, opción B): tomarla de la Maestra en el Drive del CID, revisando cada 10 minutos.
    El cargador lo toma de ahí, lo guarda 6 horas y lo usa. Así cada cambio de la versión maestra llega solo a todos
-   los municipios, cada uno desde su propia cuenta. Si Cloudflare no responde, usa la última copia buena guardada.
+   los municipios, cada uno desde su propia cuenta. Si la fuente no responde, usa la última copia buena guardada.
    El administrador puede pedir la versión nueva al momento (acción «actualizar» o menú Padrón › 3).
    Probado solo en el simulador (plataforma/pruebas/cargador.test.js). */
 
-const FUENTE_NUCLEO = 'https://padron-cid.pages.dev/servidor/Codigo.gs';
+const FUENTE_NUCLEO = 'https://raw.githubusercontent.com/centrodeingenieriademocratica-arch/padron-captura/main/plataforma/servidor/Codigo.gs';
 const EXPORTA_ = ['doGet', 'doPost', 'api', 'onOpen', 'configurar', 'enlaceAdmin', 'actualizarApp'];
 
 let NUCLEO_ = null;

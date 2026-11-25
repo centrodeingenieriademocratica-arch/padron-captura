@@ -4,18 +4,17 @@ Reemplaza a la app de captura v13 (archivos de la raíz del repositorio), que si
 
 ## Cómo está armada
 
-- **servidor/Cargador.gs**: lo único que se pega en cada ayuntamiento. Toma del sitio del padrón en Cloudflare la versión maestra (`Codigo.gs`) y la renueva cada 6 horas, así cada mejora llega sola a todos los municipios, cada uno desde su propia cuenta.
-- **admin/**: «CID Admin Beneficiarios», la app de mando de la usuaria (celular, padron-cid.pages.dev/admin). Números de todos los municipios, lo vencido y lo que requiere atención, vista completa de administrador de cada uno y «ver como» cualquier rol, solo para mirar (el servidor no deja guardar ni cambiar nada con esos enlaces). Las claves se guardan solo en su celular, cifradas con su PIN.
-- **cloudflare/**: el sitio del padrón en Cloudflare Pages (se publica solo desde main): app de mando, versión maestra, app del celular y `functions/api/registro.js`, el registro donde cada municipio se anota solo al abrirse (nombre y dirección, sin claves; guardado en Cloudflare KV). La app de mando lee la lista con la clave del registro. Nada vive en la cuenta Google del CID.
+- **servidor/Cargador.gs**: lo único que se pega en cada ayuntamiento. Toma la versión maestra (`Codigo.gs`) de GitHub (pendiente: de la Maestra en el Drive del CID, cada 10 minutos) y la renueva cada 6 horas, así cada mejora llega sola a todos los municipios, cada uno desde su propia cuenta.
+- **admin/**: «CID Admin Beneficiarios», la app de mando de la usuaria (NO publicada: la app de mando nacerá sobre la pieza común de Timón, orden 36e). Números de todos los municipios, lo vencido y lo que requiere atención, vista completa de administrador de cada uno y «ver como» cualquier rol, solo para mirar (el servidor no deja guardar ni cambiar nada con esos enlaces). Las claves se guardan solo en su celular, cifradas con su PIN.
+- **Dónde vive todo**: opción B del Arquitecto, 100% Google. Nada en Cloudflare. Ver `INSTALAR.md`.
 - **servidor/Codigo.gs** (versión maestra): Apps Script de **un** ayuntamiento, pegado en su hoja, que vive en una cuenta de Google gratuita del ayuntamiento. Menú *Padrón → 1. Configurar* crea las pestañas, los catálogos base y el enlace del administrador. Cómo instalarlo: `INSTALAR.md`.
-- **app/**: la app para celular. Como en la herramienta de estructura, la sirve el propio Apps Script del ayuntamiento en su dirección `/exec?u=CODIGO`. El servidor la toma del sitio de Cloudflare y la renueva cada 6 horas, así que las mejoras llegan a todos sin volver a pegar nada. Abierta como archivo suelto, sin servidor, funciona en modo de muestra.
+- **app/**: la app para celular. Como en la herramienta de estructura, la sirve el propio Apps Script del ayuntamiento en su dirección `/exec?u=CODIGO`. El servidor la toma de GitHub y la renueva cada 6 horas, así que las mejoras llegan a todos sin volver a pegar nada. Abierta como archivo suelto, sin servidor, funciona en modo de muestra.
   - Buscar persona, alta (persona, hogar, grupo, institución, obra o unidad productiva; menor con tutor; CURP llena fecha y sexo), entrega en 3 pasos (quién recibe, apoyo y cantidad, evidencia: foto, firma, "no sabe firmar", folio de lista en papel, ubicación), entrega en evento o fila, solicitudes, pendientes y administración (programas, eventos, lotes, usuarios).
   - Todo se guarda primero en el teléfono y se envía solo cuando hay señal; si se envía dos veces no se duplica.
 - **pruebas/**: un simulador de Apps Script para probar sin Google.
   - `node plataforma/pruebas/servidor.test.js`: reglas del servidor.
   - `node plataforma/pruebas/app.e2e.js`: la app completa en un navegador sin pantalla (administrador y capturista, sin señal y con señal).
   - `node plataforma/pruebas/cargador.test.js`: el cargador.
-  - `node plataforma/pruebas/registro-cloudflare.test.js`: el registro de municipios.
   - `node plataforma/pruebas/admin.e2e.js`: la app de mando con dos municipios simulados.
   - `node plataforma/pruebas/servidor-local.js`: abre la app con el servidor simulado en http://localhost:8080 para revisarla a mano.
 

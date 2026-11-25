@@ -8,10 +8,15 @@ const REG = '/api/registro';
 const A = crear(), B = crear();
 const ta = A.instalar_('Ayuntamiento de Atlixco', '').token, tb = B.instalar_('Ayuntamiento de Chiautzingo', '').token;
 A.agrega_('Solicitudes', { id: 'S-VIEJA0001', beneficiario_id: 'X', area: 'DIF', fecha: '2020-01-01', descripcion: 'x', estatus: 'Recibida' });
-/* Registro simulado: la misma función de Cloudflare, con KV en memoria. */
-const { kv: nuevoKv, registro } = require('./kv-simulado'), KV = nuevoKv();
-const esPadron = async () => ({ json: async () => ({ servicio: 'padron-municipal' }) });
-let reg;
+/* Registro simulado en memoria (la consola no se publica; la app de mando nacerá sobre la pieza común de Timón). */
+const MUNI = {}; let CLAVE = '';
+const reg = async d => {
+  if (d.a === 'anotar') { MUNI[d.url] = { nombre: d.nombre, url: d.url }; return { ok: true }; }
+  if (d.a === 'ponClave') { if (CLAVE) return { ok: false, error: 'ya_hay_clave' }; CLAVE = require('crypto').createHash('sha256').update(d.clave).digest('base64'); return { ok: true }; }
+  if (d.a === 'lista') { if (!CLAVE) return { ok: false, error: 'sin_clave' }; if (require('crypto').createHash('sha256').update(String(d.clave)).digest('base64') !== CLAVE) return { ok: false, error: 'clave' };
+    return { ok: true, municipios: Object.values(MUNI) }; }
+  return { ok: false, error: 'accion' };
+};
 
 let n = 0, fallas = 0;
 const ok = (c, t) => { n++; if (c) console.log('ok   ' + t); else { fallas++; console.log('FALLA ' + t); } };
@@ -23,7 +28,6 @@ const srv = http.createServer(async (q, r) => {
   r.setHeader('content-type', { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png' }[path.extname(p)] || 'text/plain');
   r.end(fs.readFileSync(p));
 }).listen(8099, async () => {
-  const { atiende } = await registro(); reg = d => atiende(d, KV, esPadron);
   await reg({ a: 'anotar', nombre: 'Ayuntamiento de Atlixco', url: EA }); await reg({ a: 'anotar', nombre: 'Ayuntamiento de Chiautzingo', url: EB });
   const b = await chromium.launch(), pg = await b.newPage({ viewport: { width: 390, height: 844 } }), errs = [], vistos = [];
   pg.on('pageerror', e => errs.push(e.message));
