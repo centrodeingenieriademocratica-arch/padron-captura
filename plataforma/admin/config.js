@@ -1,2 +1,2 @@
-/* Registro de municipios: función de Cloudflare en este mismo sitio (plataforma/cloudflare/functions/api/registro.js). */
-window.ADMIN = { registro: '/api/registro' };
+/* Consola propia NO publicada (orden 36e del Arquitecto): la app de mando del padrón nacerá sobre la pieza común de Timón. */
+window.ADMIN = { registro: '' };
